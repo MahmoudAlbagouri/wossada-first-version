@@ -1,25 +1,27 @@
 <template>
   <div class="product-card">
     <!-- الصورة -->
-    <div class="product-image">
-      <div class="icon-wrapper">
-        <!-- ✅ تغيير الأيقونة حسب السياق -->
-        <Icon
-          :name="inWishlist ? 'ph:heart-fill' : 'ph:heart-light'"
-          class="icon-md"
+    <NuxtLink to="/product/product">
+      <div class="product-image">
+        <div class="icon-wrapper">
+          <!-- ✅ تغيير الأيقونة حسب السياق -->
+          <Icon
+            :name="inWishlist ? 'ph:heart-fill' : 'ph:heart-light'"
+            class="icon-md"
+          />
+        </div>
+        <div class="gift">
+          <Icon name="ph:gift-light" class="icon-md" />
+          <span class="gift-text">اطلب هديتك</span>
+        </div>
+        <img
+          :src="product.image || '/images/products/product1.jpg'"
+          :alt="product.title || 'منتج'"
+          class="image"
+          loading="lazy"
         />
       </div>
-      <div class="gift">
-        <Icon name="ph:gift-light" class="icon-md" />
-        <span class="gift-text">اطلب هديتك</span>
-      </div>
-      <img
-        :src="product.image || '/images/products/product1.jpg'"
-        :alt="product.title || 'منتج'"
-        class="image"
-        loading="lazy"
-      />
-    </div>
+    </NuxtLink>
 
     <!-- المحتوى النصي -->
     <div class="product-info">
