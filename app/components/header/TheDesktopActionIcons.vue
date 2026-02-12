@@ -28,12 +28,21 @@
   gap: 22px;
   color: var(--color-green-primary);
 }
+
 .action-icons .icon-md {
   font-size: 30px;
   cursor: pointer;
   transition: transform 0.2s;
 }
+
 .action-icons .icon-md:hover {
   transform: translateY(-2px);
+}
+
+// إخفاء على الشاشات الصغيرة
+@media (max-width: 870px) {
+  .action-icons {
+    display: none;
+  }
 }
 </style>

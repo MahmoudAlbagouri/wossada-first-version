@@ -24,7 +24,7 @@
 
 <style scoped lang="scss">
 .action-icons-mobile {
-  display: none;
+  display: none; /* مهم: يبدأ مخفيًا */
   position: fixed;
   bottom: 0;
   right: 0;
@@ -35,15 +35,20 @@
   background-color: var(--color-green-white);
   color: var(--color-green-primary);
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
 }
+
 .action-icons-mobile .icon-md {
   font-size: 30px;
   cursor: pointer;
   transition: transform 0.2s;
 }
+
 .action-icons-mobile .icon-md:hover {
   transform: translateY(-2px);
 }
+
+/* يظهر فقط على الشاشات الصغيرة */
 @media (max-width: 870px) {
   .action-icons-mobile {
     display: flex;

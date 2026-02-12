@@ -37,8 +37,8 @@
       <div class="middle-bar">
         <div class="container">
           <div class="nav-content">
-            <!-- أيقونات الإجراءات - شاشات كبيرة -->
-            <TheDesktopActionIcons v-if="!isMobileValue" />
+            <!-- ❗️تمت إزالة v-if — يُعرض دائمًا ويُتحكم فيه عبر CSS -->
+            <TheDesktopActionIcons />
 
             <!-- حقل البحث - شاشات كبيرة -->
             <div v-if="!isMobileValue" class="search-container">
@@ -52,7 +52,6 @@
 
             <!-- أيقونة البحث - شاشات صغيرة -->
             <button
-              v-if="isMobileValue"
               @click="openSearchPopup"
               class="search-icon-mobile"
               aria-label="بحث"
@@ -74,7 +73,6 @@
                 </div>
               </NuxtLink>
               <button
-                v-if="isMobileValue"
                 @click="toggleMobileMenu"
                 class="menu-toggle-btn"
                 aria-label="قائمة التنقل"
@@ -86,13 +84,13 @@
         </div>
       </div>
       <!-- القائمة الرئيسية - سطح المكتب -->
-
       <TheDesktopNav v-if="!isMobileValue" />
     </div>
 
-    <!-- أيقونات الجوال السفلية -->
-    <TheMobileActionIcons v-if="isMobileValue" />
+    <!-- ❗️تمت إزالة v-if — يُعرض دائمًا ويُتحكم فيه عبر CSS -->
+    <TheMobileActionIcons />
   </header>
+
   <!-- القائمة الرئيسية - الجوال -->
   <TheMobileNav
     v-if="isMobileValue"
@@ -255,7 +253,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-/* نفس الـ CSS الموجود في الملف الأصلي بالكامل */
 .smart-nav-wrapper {
   width: 100%;
   transition: transform 0.3s ease-in-out;
