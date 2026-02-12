@@ -1,0 +1,196 @@
+/* app/assets/css/main.css */
+
+/* Extra Light */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-ExtraLight.ttf") format("truetype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Light */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Regular */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Medium */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SemiBold */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Extra Bold */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Black */
+@font-face {
+  font-family: "Cairo";
+  src: url("../fonts/Cairo-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* تطبيق الخط كخيار افتراضي للمشروع */
+
+:root {
+  /* Green Palette (من الصورة المرفقة) */
+  --color-green-white: #fdfdfb;
+  --color-green-light: #f5f1e9;
+  --color-green-light-hover: #f0eade;
+  --color-green-light-active: #dfd3bc;
+  --color-green-primary: #987226; /* اللون الأساسي للمتجر */
+  --color-green-hover: #896722;
+  --color-green-active: #7a5b1e;
+  --color-green-dark: #72561d;
+  --color-green-dark-hover: #5b4417;
+  --color-green-dark-active: #443311;
+  --color-green-darker: #35280d;
+  --color-green-black: #291f0a;
+
+  /* Yellow Palette (من الصورة المرفقة) */
+  --color-yellow-light: #fffff5;
+  --color-yellow-light-hover: #feffdc;
+  --color-yellow-light-active: #feffb6;
+  --color-yellow-secondary: #fbff14; /* لون التنبيهات أو العروض */
+  --color-yellow-hover: #e2e612;
+  --color-yellow-active: #c9cc10;
+  --color-yellow-dark: #bcbf0f;
+  --color-yellow-dark-hover: #97990c;
+  --color-yellow-darker: #585907;
+
+  /* Neutrals & UI */
+  --text-main: #1a1a1a;
+  --text-muted: #666666;
+  --bg-body: #fffff5;
+  --border-color: #eeeeee;
+
+  /* Shadow */
+  --shadow-1: 0px 2px 4px 0px #00000033;
+  --shadow-2: 0px 5px 10px 0px #0000000d;
+  --shadow-3: 0px 5px 10px 0px #00000033;
+  --shadow-4: 0px 10px 20px 0px #0000001a;
+  /* Transition  */
+  --main-transition: 0.3s;
+}
+* {
+  box-sizing: border-box;
+  font-family: "Cairo", sans-serif;
+  padding: 0;
+  margin: 0;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  margin: 0;
+  padding: 0;
+  height: 1000px;
+  direction: rtl;
+}
+a {
+  text-decoration: none;
+  color: inherit;
+}
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--color-yellow-light-active);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-green-primary);
+}
+
+/* _________________ */
+.container {
+  padding-left: 15px;
+  padding-right: 15px;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (min-width: 768px) {
+  .container {
+    width: 750px;
+  }
+}
+@media (min-width: 850px) {
+  .container {
+    width: 830px;
+  }
+}
+@media (min-width: 992px) {
+  .container {
+    width: 960px;
+  }
+}
+@media (min-width: 1200px) {
+  .container {
+    width: 1180px;
+  }
+}
+@media (min-width: 1250px) {
+  .container {
+    width: 1230px;
+  }
+}
+@media (min-width: 1300px) {
+  .container {
+    width: 1280px;
+  }
+}
+@media (min-width: 1400px) {
+  .container {
+    width: 1340px;
+  }
+}
+@media (min-width: 1500px) {
+  .container {
+    width: 1400px;
+  }
+}
