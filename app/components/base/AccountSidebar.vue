@@ -37,6 +37,7 @@
         <Icon name="ph:bell" class="nav-icon" />
         <span>الإشعارات</span>
       </NuxtLink>
+
       <NuxtLink
         to="/account/cart"
         class="nav-item"
@@ -54,6 +55,7 @@
         <Icon name="ph:heart" class="nav-icon" />
         <span>المفضلة</span>
       </NuxtLink>
+
       <NuxtLink
         to="/account/orders"
         class="nav-item"
@@ -63,28 +65,55 @@
         <span>طلباتي</span>
       </NuxtLink>
 
-      <NuxtLink to="/account/logout" class="nav-item logout">
-        <Icon name="ph:arrow-right" class="nav-icon" />
+      <!-- زر تسجيل الخروج -->
+      <button @click="showLogoutModal = true" class="nav-item logout">
+        <Icon name="ph:sign-out" class="nav-icon" />
         <span>تسجيل الخروج</span>
-      </NuxtLink>
+      </button>
     </nav>
+
+    <!-- استخدام المكون العام للبوب أب -->
+    <BaseConfirmationModal
+      v-model="showLogoutModal"
+      title="تأكيد تسجيل الخروج"
+      message="هل أنت متأكد أنك تريد تسجيل الخروج؟ سيتم فقدان جلستك الحالية."
+      confirm-text="خروج"
+      cancel-text="البقاء مسجلًا"
+      :whatsapp-number="whatsappNumber"
+      @confirm="handleLogout"
+    />
   </div>
 </template>
 
 <script setup>
 import { useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import BaseConfirmationModal from "@/components/base/BaseConfirmationModal.vue";
 
 const route = useRoute();
+const authStore = useAuthStore();
 
+// حالة عرض البوب أب
+const showLogoutModal = ref(false);
+
+// رقم الواتساب (غيّره إلى الرقم الفعلي لخدمة العملاء)
+const whatsappNumber = "201000000000"; // مثال: "201012345678"
+
+// تحديد العنصر النشط في القائمة
 const isActive = (path) => {
   return route.path.startsWith(path);
+};
+
+// معالجة تسجيل الخروج
+const handleLogout = async () => {
+  await authStore.logout();
 };
 </script>
 
 <style scoped lang="scss">
 .account-sidebar {
   width: 280px;
-  background: white;
+  background: var(--color-green-white);
   border-radius: 16px;
   box-shadow: var(--shadow-3);
   padding: 24px;
@@ -144,6 +173,7 @@ const isActive = (path) => {
   font-size: 16px;
   font-weight: 500;
   transition: all 0.3s ease;
+  cursor: pointer;
 
   .nav-icon {
     font-size: 20px;
@@ -167,16 +197,15 @@ const isActive = (path) => {
   }
 
   &.logout {
-    color: #d32f2f;
+    color: var(--color-green-primary);
     margin-top: auto;
-
     .nav-icon {
-      color: #d32f2f;
+      color: var(--color-green-primary);
     }
 
     &:hover {
-      background: rgba(211, 47, 47, 0.1);
-      color: #d32f2f;
+      background: rgba(76, 175, 80, 0.1);
+      color: var(--color-green-primary);
     }
   }
 }

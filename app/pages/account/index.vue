@@ -106,7 +106,9 @@
 import { ref } from "vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
-
+definePageMeta({
+  middleware: ["auth"],
+});
 const formData = ref({
   phone: "01110022133",
   email: "mahmodnasser42@gmail.com",

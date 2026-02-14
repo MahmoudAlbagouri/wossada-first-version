@@ -98,7 +98,9 @@
 import { ref, computed } from "vue";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
 import QuantityInput from "@/components/base/QuantityInput.vue";
-
+definePageMeta({
+  middleware: ["auth"],
+});
 const quantities = ref({
   1: 2,
   2: 2,

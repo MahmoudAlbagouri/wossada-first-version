@@ -3,101 +3,95 @@
     <div class="register-card">
       <h1 class="register-title">إنشاء حساب</h1>
 
-      <form @submit.prevent="handleRegister" class="register-form">
-        <!-- حقل الاسم الكامل -->
+      <div v-if="serverError" class="server-error-message">
+        {{ serverError }}
+      </div>
+
+      <form @submit.prevent="onSubmit" class="register-form">
         <BaseInput
-          v-model="formData.fullName"
+          v-model="fullName"
           label="الاسم الكامل *"
           id="fullName"
-          type="text"
           placeholder="أدخل اسمك الكامل"
           icon="ph:user"
-          :required="true"
+          :error="errors.fullName"
+          :disabled="isSubmitting"
         />
 
-        <!-- حقل البريد الإلكتروني -->
         <BaseInput
-          v-model="formData.email"
+          v-model="email"
           label="البريد الإلكتروني *"
           id="email"
           type="email"
-          placeholder="mahmodnasser42@gmail.com"
+          placeholder="example@mail.com"
           icon="ph:envelope-simple"
-          :required="true"
-          :show-check="true"
+          :error="errors.email"
+          :disabled="isSubmitting"
         />
 
-        <!-- حقل رقم الجوال -->
         <BaseInput
-          v-model="formData.phone"
+          v-model="phone"
           label="رقم الجوال *"
           id="phone"
           type="tel"
           placeholder="010XXXXXXXX"
           icon="ph:phone"
-          :required="true"
+          :error="errors.phone"
+          :disabled="isSubmitting"
         />
 
-        <!-- حقل كلمة المرور -->
         <BaseInput
-          v-model="formData.password"
+          v-model="password"
           label="كلمة المرور *"
           id="password"
           :type="showPassword ? 'text' : 'password'"
           placeholder="••••••••"
           icon="ph:lock"
-          :required="true"
           :show-password-toggle="true"
           :password-visible="showPassword"
-          @toggle-password="togglePassword"
+          :error="errors.password"
+          :disabled="isSubmitting"
+          @toggle-password="showPassword = !showPassword"
         />
 
-        <!-- حقل تأكيد كلمة المرور -->
         <BaseInput
-          v-model="formData.confirmPassword"
+          v-model="confirmPassword"
           label="تأكيد كلمة المرور *"
           id="confirmPassword"
           :type="showConfirmPassword ? 'text' : 'password'"
           placeholder="••••••••"
           icon="ph:lock"
-          :required="true"
           :show-password-toggle="true"
           :password-visible="showConfirmPassword"
-          @toggle-password="toggleConfirmPassword"
+          :error="errors.confirmPassword"
+          :disabled="isSubmitting"
+          @toggle-password="showConfirmPassword = !showConfirmPassword"
         />
 
-        <!-- شروط الاستخدام -->
-        <BaseCheckbox
-          v-model="formData.termsAccepted"
-          id="terms"
-          label="أوافق على الشروط والأحكام وسياسة الخصوصية"
-        />
+        <div class="checkbox-container">
+          <BaseCheckbox
+            v-model="termsAccepted"
+            id="terms"
+            label="أوافق على الشروط والأحكام وسياسة الخصوصية"
+          />
+          <p v-if="errors.termsAccepted" class="error-text">
+            {{ errors.termsAccepted }}
+          </p>
+        </div>
 
-        <!-- زر إنشاء الحساب -->
-        <BaseButton type="submit" :full-width="true" variant="primary">
+        <BaseButton
+          type="submit"
+          :full-width="true"
+          variant="primary"
+          :loading="isSubmitting"
+        >
           إنشاء حساب
         </BaseButton>
 
-        <!-- فاصل -->
         <div class="divider">
           <span class="divider-text">أو</span>
         </div>
 
-        <!-- التسجيل عبر Google & Facebook -->
-        <div class="social-login">
-          <SocialButton
-            platform="google"
-            label="Google"
-            @click="registerWith('google')"
-          />
-          <SocialButton
-            platform="facebook"
-            label="Facebook"
-            @click="registerWith('facebook')"
-          />
-        </div>
-
-        <!-- لديك حساب بالفعل؟ -->
         <p class="login-prompt">
           لديك حساب بالفعل؟
           <NuxtLink to="/login" class="link-text">تسجيل الدخول</NuxtLink>
@@ -108,57 +102,80 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import BaseInput from "@/components/base/BaseInput.vue";
-import BaseButton from "@/components/base/BaseButton.vue";
-import BaseCheckbox from "@/components/base/BaseCheckbox.vue";
-import SocialButton from "@/components/base/SocialButton.vue";
+import { useForm, useField } from "vee-validate";
+import * as yup from "yup";
 
-const formData = ref({
-  fullName: "",
-  email: "",
-  phone: "",
-  password: "",
-  confirmPassword: "",
-  termsAccepted: false,
-});
+definePageMeta({ middleware: ["guest"] });
 
+const authStore = useAuthStore();
+const serverError = ref("");
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-const togglePassword = () => {
-  showPassword.value = !showPassword.value;
-};
+// 1. شروط التحقق
+const schema = yup.object({
+  fullName: yup
+    .string()
+    .required("الاسم الكامل مطلوب")
+    .min(3, "الاسم قصير جداً"),
+  email: yup.string().required("البريد مطلوب").email("بريد غير صحيح"),
+  phone: yup
+    .string()
+    .required("رقم الجوال مطلوب")
+    .matches(/^[0-9]+$/, "أرقام فقط"),
+  password: yup
+    .string()
+    .required("كلمة المرور مطلوبة")
+    .min(6, "6 أحرف على الأقل"),
+  confirmPassword: yup
+    .string()
+    .required("تأكيد كلمة المرور مطلوب")
+    .oneOf([yup.ref("password")], "كلمات المرور غير متطابقة"),
+  termsAccepted: yup.boolean().oneOf([true], "يجب الموافقة على الشروط"),
+});
 
-const toggleConfirmPassword = () => {
-  showConfirmPassword.value = !showConfirmPassword.value;
-};
+const { handleSubmit, errors, isSubmitting } = useForm({
+  validationSchema: schema,
+  initialValues: { termsAccepted: false },
+});
 
-const handleRegister = () => {
-  if (!formData.value.termsAccepted) {
-    alert("يرجى الموافقة على الشروط والأحكام");
-    return;
+const { value: fullName } = useField("fullName");
+const { value: email } = useField("email");
+const { value: phone } = useField("phone");
+const { value: password } = useField("password");
+const { value: confirmPassword } = useField("confirmPassword");
+const { value: termsAccepted } = useField("termsAccepted");
+
+const onSubmit = handleSubmit(async (values) => {
+  serverError.value = "";
+
+  // تقسيم الاسم (لأن السيرفر يطلب firstName و lastName)
+  const nameParts = values.fullName.trim().split(" ");
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(" ") || firstName;
+
+  const result = await authStore.register({
+    firstName,
+    lastName,
+    email: values.email,
+    phone: values.phone,
+    password: values.password,
+  });
+
+  if (result.success) {
+    navigateTo("/");
+  } else {
+    serverError.value = result.error;
   }
-  if (formData.value.password !== formData.value.confirmPassword) {
-    alert("كلمة المرور وتأكيدها غير متطابقين");
-    return;
-  }
-  console.log("إنشاء حساب:", formData.value);
-  // TODO: تنفيذ منطق التسجيل الفعلي
-};
-
-const registerWith = (provider) => {
-  console.log(`إنشاء حساب عبر ${provider}`);
-  // TODO: تكامل مع OAuth
-};
+});
 </script>
 
 <style scoped lang="scss">
 .register-page {
   width: 700px;
   max-width: 100%;
-  margin: 0 auto;
-  min-height: 100vh;
+  margin: 40px auto;
+  min-height: 80vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -167,28 +184,34 @@ const registerWith = (provider) => {
   border-radius: 16px;
   padding: 40px 30px;
 }
-
 .register-card {
-  width: 80%;
+  width: 85%;
   text-align: right;
 }
-
 .register-title {
   font-size: 28px;
   font-weight: 700;
   color: var(--text-main);
-  margin: 0 0 32px 0;
+  margin-bottom: 32px;
   text-align: center;
 }
 
-/* شروط الاستخدام */
-:deep(.base-checkbox-wrapper) {
-  margin-bottom: 24px;
+.server-error-message {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+}
 
-  .checkbox-text {
-    font-size: 14px;
-    color: var(--text-muted);
-    line-height: 1.5;
+.checkbox-container {
+  margin-bottom: 24px;
+  .error-text {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
   }
 }
 
@@ -196,45 +219,29 @@ const registerWith = (provider) => {
   display: flex;
   align-items: center;
   margin: 32px 0;
-  position: relative;
-}
-
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border-color);
-}
-
-.divider-text {
-  padding: 0 16px;
-  font-size: 14px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.social-login {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #eee;
+  }
+  .divider-text {
+    padding: 0 16px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
 }
 
 .login-prompt {
   text-align: center;
   font-size: 14px;
   color: var(--text-muted);
-  margin: 24px 0 0 0;
-
+  margin-top: 24px;
   .link-text {
     color: var(--color-green-primary);
     text-decoration: none;
     font-weight: 600;
-    transition: color 0.3s;
-
-    &:hover {
-      color: var(--color-green-hover);
-    }
   }
 }
 </style>

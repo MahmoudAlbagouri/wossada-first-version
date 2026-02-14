@@ -3,29 +3,27 @@
     :type="type"
     class="base-button"
     :class="{ 'full-width': fullWidth, primary: variant === 'primary' }"
+    :disabled="disabled || loading"
   >
-    <slot />
+    <template v-if="loading"> جاري التحقق... </template>
+    <template v-else>
+      <slot />
+    </template>
   </button>
 </template>
 
 <script setup>
 defineProps({
-  type: {
-    type: String,
-    default: "button",
-  },
-  fullWidth: {
-    type: Boolean,
-    default: false,
-  },
-  variant: {
-    type: String,
-    default: "primary", // primary | secondary
-  },
+  type: { type: String, default: "button" },
+  fullWidth: { type: Boolean, default: false },
+  variant: { type: String, default: "primary" },
+  loading: { type: Boolean, default: false }, // إضافة خاصية التحميل
+  disabled: { type: Boolean, default: false }, // إضافة خاصية التعطيل
 });
 </script>
 
 <style scoped lang="scss">
+/* نفس الـ CSS الخاص بك تماماً بدون تغيير */
 .base-button {
   padding: 8px 24px;
   border: none;
@@ -39,6 +37,12 @@ defineProps({
   justify-content: center;
   gap: 8px;
 
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important; /* لمنع الـ hover effect أثناء التحميل */
+  }
+
   &.full-width {
     width: 100%;
   }
@@ -46,7 +50,6 @@ defineProps({
   &.primary {
     background: var(--color-green-primary);
     color: white;
-
     &:hover {
       background: var(--color-green-hover);
       transform: translateY(-2px);

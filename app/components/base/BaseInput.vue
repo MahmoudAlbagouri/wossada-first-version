@@ -1,7 +1,8 @@
 <template>
   <div class="base-input-wrapper">
     <label v-if="label" :for="id" class="form-label">{{ label }}</label>
-    <div class="input-container">
+
+    <div class="input-container" :class="{ 'error-border': error }">
       <Icon :name="icon" class="input-icon" />
       <input
         :id="id"
@@ -13,7 +14,7 @@
         class="form-input"
       />
       <Icon
-        v-if="showCheck && modelValue"
+        v-if="showCheck && modelValue && !error"
         name="ph:check-circle"
         class="input-check"
       />
@@ -30,51 +31,26 @@
         />
       </button>
     </div>
+
+    <Transition name="fade-slide">
+      <span v-if="error" class="error-message">{{ error }}</span>
+    </Transition>
   </div>
 </template>
 
 <script setup>
 defineProps({
-  modelValue: {
-    type: String,
-    default: "",
-  },
-  label: {
-    type: String,
-    default: "",
-  },
-  id: {
-    type: String,
-    required: true,
-  },
-  type: {
-    type: String,
-    default: "text",
-  },
-  placeholder: {
-    type: String,
-    default: "",
-  },
-  icon: {
-    type: String,
-    required: true,
-  },
-  required: {
-    type: Boolean,
-    default: false,
-  },
-  showCheck: {
-    type: Boolean,
-    default: false,
-  },
-  showPasswordToggle: {
-    type: Boolean,
-    default: false,
-  },
-  passwordVisible: {
-    type: Boolean,
-    default: false,
-  },
+  modelValue: { type: String, default: "" },
+  label: { type: String, default: "" },
+  id: { type: String, required: true },
+  type: { type: String, default: "text" },
+  placeholder: { type: String, default: "" },
+  icon: { type: String, required: true },
+  required: { type: Boolean, default: false },
+  showCheck: { type: Boolean, default: false },
+  showPasswordToggle: { type: Boolean, default: false },
+  passwordVisible: { type: Boolean, default: false },
+  error: { type: String, default: "" }, // إضافة خاصية الخطأ هنا
 });
 
 defineEmits(["update:modelValue", "toggle-password"]);
@@ -83,16 +59,10 @@ defineEmits(["update:modelValue", "toggle-password"]);
 <style scoped lang="scss">
 .base-input-wrapper {
   margin-bottom: 24px;
+  position: relative;
 }
 
-.form-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  direction: rtl;
-}
+/* ... بقية التنسيقات الخاصة بك كما هي ... */
 
 .input-container {
   position: relative;
@@ -102,6 +72,41 @@ defineEmits(["update:modelValue", "toggle-password"]);
   border-radius: 12px;
   overflow: hidden;
   background: var(--color-green-white);
+  transition: border-color 0.3s ease;
+
+  // إضافة ستايل الحواف عند وجود خطأ
+  &.error-border {
+    border-color: #dc2626;
+  }
+}
+
+.error-message {
+  display: block;
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 6px;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* أنيميشن بسيط لظهور رسالة الخطأ */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  direction: rtl;
 }
 
 .input-icon {

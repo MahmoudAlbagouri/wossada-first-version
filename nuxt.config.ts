@@ -13,9 +13,18 @@ export default defineNuxtConfig({
     "@nuxtjs/sitemap",
     "@nuxtjs/robots",
   ],
+
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE,
+    },
+  },
+  pinia: {
+    storesDirs: ["./stores"],
+  },
   css: ["@/assets/css/main.css"],
   image: {
-    domains: ["your-api-domain.com"], // اسم نطاق السيرفر الخاص بك
+    domains: ["http://76.13.41.216/"], // اسم نطاق السيرفر الخاص بك
     format: ["webp"],
   },
 });
