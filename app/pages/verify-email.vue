@@ -187,7 +187,7 @@ const handleResend = () => {
   background-color: var(--color-green-white);
   box-shadow: var(--shadow-3);
   border-radius: 16px;
-  padding: 40px 30px;
+  padding: 40px 31px;
 }
 
 .verify-card {
