@@ -1,10 +1,13 @@
+// stores/auth.ts
 import { defineStore } from "pinia";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     user: null,
-    token: null,
-    initialized: false, // متغير للتحقق من تحميل البيانات
+    token: null, // access_token
+    refreshToken: null, // refresh_token
+    initialized: false,
+    isRefreshing: false,
   }),
 
   getters: {
@@ -13,114 +16,194 @@ export const useAuthStore = defineStore("auth", {
 
   actions: {
     async login(credentials) {
-      const api = useApi();
+      const config = useRuntimeConfig();
       try {
-        const response = await api("/client/auth/login", {
+        const payload = {
+          identifier: credentials.email,
+          password: credentials.password,
+        };
+
+        const response = await $fetch(`${config.public.apiBase}/auth/login`, {
           method: "POST",
-          body: credentials,
+          body: payload,
         });
 
         if (response.success) {
           this.saveAuthData(response.data);
           return { success: true };
         }
-      } catch (error) {
         return {
           success: false,
-          error: error.data?.message || "خطأ في تسجيل الدخول",
+          error: response.message || "خطأ في تسجيل الدخول",
+        };
+      } catch (error) {
+        console.error("Login Error:", error);
+        return {
+          success: false,
+          error: error.data?.message || "حدث خطأ غير متوقع",
         };
       }
     },
 
     saveAuthData(data) {
-      // حفظ التوكن في الكوكيز
       const tokenCookie = useCookie("auth_token", {
-        maxAge: 60 * 60 * 24 * 7, // 7 أيام
+        maxAge: 60 * 60 * 24 * 7,
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
       });
 
-      // حفظ في الكوكيز والستور معاً
+      const refreshCookie = useCookie("refresh_token", {
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      });
+
       tokenCookie.value = data.access_token;
+      refreshCookie.value = data.refresh_token;
+
       this.token = data.access_token;
+      this.refreshToken = data.refresh_token;
       this.user = data.user;
       this.initialized = true;
     },
 
-    // async fetchUserProfile() {
-    //   const tokenCookie = useCookie("auth_token");
+    // ✅ الدالة المحدثة لتتوافق مع Backend الخاص بك
+    async refreshAccessToken() {
+      if (this.isRefreshing) {
+        return new Promise((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (!this.isRefreshing && this.token) {
+              clearInterval(checkInterval);
+              resolve(true);
+            } else if (!this.refreshToken) {
+              clearInterval(checkInterval);
+              resolve(false);
+            }
+          }, 100);
+        });
+      }
 
-    //   // التحقق من وجود توكن في الكوكيز
-    //   if (!tokenCookie.value) {
-    //     this.clearAuth();
-    //     return;
-    //   }
+      const refreshCookie = useCookie("refresh_token");
+      const currentRefreshToken = refreshCookie.value;
 
-    //   // التأكد من تحديث التوكن في الستور
-    //   if (!this.token) {
-    //     this.token = tokenCookie.value;
-    //   }
+      if (!currentRefreshToken) {
+        this.clearAuth();
+        return false;
+      }
 
-    //   const api = useApi();
-    //   try {
-    //     const response = await api("/client/auth/me");
-    //     if (response.success) {
-    //       this.user = response.data.user;
-    //       this.token = tokenCookie.value;
-    //       this.initialized = true;
-    //     } else {
-    //       this.clearAuth();
-    //     }
-    //   } catch (error) {
-    //     console.error("Error fetching user profile:", error);
-    //     this.clearAuth();
-    //   }
-    // },
+      this.isRefreshing = true;
+      const config = useRuntimeConfig();
+
+      try {
+        // ملاحظة هامة: الباك إند يتوقع التوكن في الـ Headers وليس الـ Body
+        const response = await $fetch(
+          `${config.public.apiBase}/auth/refresh-token`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${currentRefreshToken}`,
+              "Content-Type": "application/json",
+            },
+            // لا نحتاج لإرسال body لأن التوكن في الهيدر
+          },
+        );
+
+        if (response.success && response.data.access_token) {
+          const newAccessToken = response.data.access_token;
+          const newRefreshToken =
+            response.data.refresh_token || currentRefreshToken;
+          const newUser = response.data.user;
+
+          // تحديث الكوكيز
+          const tokenCookie = useCookie("auth_token", {
+            maxAge: 60 * 60 * 24 * 7,
+            sameSite: "lax",
+            path: "/",
+            secure: process.env.NODE_ENV === "production",
+          });
+
+          const newRefreshCookie = useCookie("refresh_token", {
+            maxAge: 60 * 60 * 24 * 30,
+            sameSite: "lax",
+            path: "/",
+            secure: process.env.NODE_ENV === "production",
+          });
+
+          tokenCookie.value = newAccessToken;
+          newRefreshCookie.value = newRefreshToken;
+
+          // تحديث الحالة
+          this.token = newAccessToken;
+          this.refreshToken = newRefreshToken;
+          if (newUser) this.user = newUser;
+
+          this.isRefreshing = false;
+          return true;
+        } else {
+          throw new Error("فشل تحديث التوكن من السيرفر");
+        }
+      } catch (error) {
+        console.error("Refresh Token Failed:", error);
+        this.isRefreshing = false;
+        this.clearAuth(); // خروج كامل عند الفشل
+        if (process.client) {
+          navigateTo("/login");
+        }
+        return false;
+      }
+    },
+
+    // ✅ الدالة المفقودة (تمت الإضافة هنا لإصلاح خطأ 500)
     async fetchUserProfile() {
       const tokenCookie = useCookie("auth_token");
+      const refreshCookie = useCookie("refresh_token");
 
-      // تحميل التوكن فقط من الكوكيز (بدون طلب للسيرفر)
       if (tokenCookie.value) {
         this.token = tokenCookie.value;
-        // لا نجلب user من السيرفر الآن
-        // يمكنك ترك this.user كما هو (null) أو تعيينه لاحقًا
+        if (refreshCookie.value) {
+          this.refreshToken = refreshCookie.value;
+        }
+        // ملاحظة: بما أن الباك إند يرسل بيانات المستخدم مع اللوجن والريفresh،
+        // فلا حاجة لاستدعاء endpoint منفصل هنا إلا إذا أردت تحديث البيانات يدوياً.
+        // هذه الدالة تكفي لتهيئة الحالة من الكوكيز.
       } else {
         this.clearAuth();
         return;
       }
-
-      // نعتبر أن التهيئة انتهت
       this.initialized = true;
     },
 
     logout() {
       this.clearAuth();
-      navigateTo("/login");
+      navigateTo("/");
     },
 
     clearAuth() {
       this.user = null;
       this.token = null;
+      this.refreshToken = null;
       this.initialized = false;
+      this.isRefreshing = false;
 
-      // مسح الكوكيز بشكل صحيح
-      const tokenCookie = useCookie("auth_token");
-      tokenCookie.value = null;
+      useCookie("auth_token").value = null;
+      useCookie("refresh_token").value = null;
 
-      // إعادة توجيه فوراً
       if (process.client) {
         window.location.href = "/";
       }
     },
 
-    // تحميل البيانات من الكوكيز
     async initializeAuth() {
       const tokenCookie = useCookie("auth_token");
-      const token = tokenCookie.value;
+      const refreshCookie = useCookie("refresh_token");
 
-      if (token) {
-        this.token = token;
+      if (tokenCookie.value) {
+        this.token = tokenCookie.value;
+        if (refreshCookie.value) {
+          this.refreshToken = refreshCookie.value;
+        }
         await this.fetchUserProfile();
       }
       this.initialized = true;

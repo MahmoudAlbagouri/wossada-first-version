@@ -1,35 +1,30 @@
 <template>
-  <div class="add-to-cart-wrapper">
-    <!-- الزر الافتراضي -->
+  <div class="add-to-cart-wrapper" @click.stop>
     <button
       v-if="!showCounter"
       class="add-to-cart-btn"
       @click="activateCounter"
+      :disabled="cartStore.loading"
     >
-      أضف إلى السلة
+      {{ cartStore.loading ? "جاري..." : "أضف إلى السلة" }}
     </button>
 
-    <!-- العداد -->
     <div v-else class="quantity-counter">
       <button
         class="qty-btn"
         :class="{ 'delete-btn': quantity === 1 }"
         @click="handleQtyAction"
-        :aria-label="quantity === 1 ? 'حذف المنتج' : 'تقليل الكمية'"
       >
         <Icon
           :name="quantity === 1 ? 'ph:trash' : 'ph:minus'"
           class="qty-icon"
         />
       </button>
-
       <span class="qty-value">{{ quantity }}</span>
-
       <button
         class="qty-btn plus"
         :disabled="max && quantity >= max"
         @click="increaseQuantity"
-        aria-label="زيادة الكمية"
       >
         <Icon name="ph:plus" class="qty-icon" />
       </button>
@@ -38,45 +33,78 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch, onMounted } from "vue";
+import { useCartStore } from "@/stores/cart";
 
 const props = defineProps({
-  initialQuantity: {
-    type: Number,
-    default: 1,
-  },
-  max: {
-    type: Number,
-    default: null,
-  },
+  productId: { type: String, required: true },
+  variantId: { type: String, default: null },
+  initialQuantity: { type: Number, default: 1 },
+  max: { type: Number, default: null },
 });
 
-const emit = defineEmits(["update:quantity", "added", "removed"]);
-
+const cartStore = useCartStore();
 const showCounter = ref(false);
 const quantity = ref(props.initialQuantity);
 
-const activateCounter = () => {
-  showCounter.value = true;
-  emit("added", quantity.value);
+// ✅ دالة موحدة للبحث عن الـ item في السلة
+const findCartItem = () => {
+  return cartStore.items.find(
+    (i) => i.productId === props.productId || i.product?.id === props.productId,
+  );
 };
 
-const increaseQuantity = () => {
-  if (props.max && quantity.value >= props.max) return;
-  quantity.value++;
-  emit("update:quantity", quantity.value);
-};
-
-const handleQtyAction = () => {
-  if (quantity.value === 1) {
-    // حذف المنتج
-    emit("removed");
-    showCounter.value = false;
-    quantity.value = 1; // إعادة التعيين لتجنب مشاكل الـ v-model
+const updateStateFromStore = () => {
+  const item = findCartItem();
+  if (item) {
+    showCounter.value = true;
+    quantity.value = item.quantity;
   } else {
-    // تقليل الكمية
-    quantity.value--;
-    emit("update:quantity", quantity.value);
+    showCounter.value = false;
+    quantity.value = props.initialQuantity;
+  }
+};
+
+// راقب أي تغيير في عناصر السلة لتحديث العداد فوراً
+watch(
+  () => cartStore.items,
+  () => {
+    updateStateFromStore();
+  },
+  { deep: true },
+);
+
+onMounted(() => {
+  updateStateFromStore();
+});
+
+const activateCounter = async (e) => {
+  if (e) e.stopPropagation();
+
+  const res = await cartStore.addToCart(props.productId, 1, props.variantId);
+  if (res?.success) {
+    showCounter.value = true;
+  }
+};
+
+// دالة زيادة الكمية
+const increaseQuantity = async () => {
+  if (props.max && quantity.value >= props.max) return;
+  const item = findCartItem(); // ✅ استخدام الدالة الموحدة
+  if (item) {
+    await cartStore.updateQuantity(item.id, quantity.value + 1);
+  }
+};
+
+// دالة تقليل الكمية أو الحذف
+const handleQtyAction = async () => {
+  const item = findCartItem(); // ✅ استخدام الدالة الموحدة
+  if (!item) return;
+
+  if (quantity.value === 1) {
+    await cartStore.removeItem(item.id);
+  } else {
+    await cartStore.updateQuantity(item.id, quantity.value - 1);
   }
 };
 </script>
@@ -148,7 +176,8 @@ const handleQtyAction = () => {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 3px 12px;
+
   .qty-btn {
     width: 32px;
     height: 32px;

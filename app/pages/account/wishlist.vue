@@ -1,22 +1,35 @@
 <template>
   <div class="container">
     <div class="account-layout">
-      <!-- الشريط الجانبي -->
       <aside class="sidebar">
         <AccountSidebar />
       </aside>
 
-      <!-- المحتوى الرئيسي -->
       <main class="main-content">
         <div class="account-card">
           <h1 class="card-title">المفضلة</h1>
 
-          <div class="wishlist-grid">
+          <div
+            v-if="wishlistStore.loading && !wishlistStore.items.length"
+            class="loading-state"
+          >
+            <div class="spinner"></div>
+            <p>جاري تحميل قائمة أمنياتك...</p>
+          </div>
+
+          <div v-else-if="wishlistStore.items.length === 0" class="empty-state">
+            <Icon name="ph:heart-break-light" class="empty-icon" />
+            <p>قائمة المفضلة لديك فارغة حالياً</p>
+            <NuxtLink to="/shop" class="go-shop-btn">
+              تصفح المنتجات الآن
+            </NuxtLink>
+          </div>
+
+          <div v-else class="wishlist-grid">
             <ProductCard
-              v-for="item in wishlistItems"
+              v-for="item in wishlistStore.items"
               :key="item.id"
-              :product="item"
-              :in-wishlist="true"
+              :product="item.product"
             />
           </div>
         </div>
@@ -26,60 +39,26 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { onMounted, watch } from "vue";
+import { useWishlistStore } from "@/stores/wishlist";
 import ProductCard from "@/components/global/ProductCard.vue";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
 
-const wishlistItems = ref([
-  {
-    id: 1,
-    title: '* 36" 180 كونتر خشب قهوة ترابيزة',
-    image: "/images/products/product1.jpg",
-    price: "1,299",
-    oldPrice: "2,599",
-    discount: "-57%",
-  },
-  {
-    id: 2,
-    title: '* 40" 200 كونتر خشب قهوة ترابيزة',
-    image: "/images/products/product1.jpg",
-    price: "1,499",
-    oldPrice: "2,999",
-    discount: "-50%",
-  },
-  {
-    id: 3,
-    title: '* 32" 160 كونتر خشب قهوة ترابيزة',
-    image: "/images/products/product1.jpg",
-    price: "1,099",
-    oldPrice: "2,199",
-    discount: "-50%",
-  },
-  {
-    id: 4,
-    title: '* 38" 190 كونتر خشب قهوة ترابيزة',
-    image: "/images/products/product1.jpg",
-    price: "1,399",
-    oldPrice: "2,799",
-    discount: "-50%",
-  },
-  {
-    id: 5,
-    title: '* 34" 170 كونتر خشب قهوة ترابيزة',
-    image: "/images/products/product1.jpg",
-    price: "1,199",
-    oldPrice: "2,399",
-    discount: "-50%",
-  },
-  {
-    id: 6,
-    title: '* 30" 150 كونتر خشب قهوة ترابيزة',
-    image: "/images/products/product1.jpg",
-    price: "999",
-    oldPrice: "1,999",
-    discount: "-50%",
-  },
-]);
+definePageMeta({
+  middleware: ["auth"],
+});
+
+const wishlistStore = useWishlistStore();
+const { currentLang } = useLanguage(); // ✅ نفس الطريقة في category page
+
+onMounted(() => {
+  wishlistStore.fetchWishlist();
+});
+
+// ✅ إعادة جلب البيانات لما اللغة تتغير — نفس الطريقة في category page
+watch(currentLang, async () => {
+  await wishlistStore.fetchWishlist();
+});
 </script>
 
 <style scoped lang="scss">
@@ -90,7 +69,6 @@ const wishlistItems = ref([
   padding: 20px;
   gap: 24px;
   padding-top: 50px;
-
   @media (max-width: 768px) {
     flex-direction: column;
   }
@@ -106,9 +84,7 @@ const wishlistItems = ref([
   box-shadow: var(--shadow-3);
   padding: 60px 40px 40px;
   position: relative;
-  @media (max-width: 768px) {
-    padding: 40px 20px 20px;
-  }
+  min-height: 400px;
 }
 
 .card-title {
@@ -123,11 +99,61 @@ const wishlistItems = ref([
   left: 50%;
   transform: translateX(-50%);
   border-radius: 12px;
+  padding: 10px;
 }
 
 .wishlist-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 70px;
+  margin-bottom: 20px;
+  color: var(--color-green-primary);
+  opacity: 0.3;
+}
+
+.go-shop-btn {
+  margin-top: 20px;
+  padding: 12px 35px;
+  background: var(--color-green-primary);
+  color: white;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: 0.3s;
+  &:hover {
+    background: var(--color-green-hover);
+    transform: translateY(-2px);
+  }
+}
+
+.spinner {
+  width: 45px;
+  height: 45px;
+  border: 4px solid var(--color-green-light);
+  border-top: 4px solid var(--color-green-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

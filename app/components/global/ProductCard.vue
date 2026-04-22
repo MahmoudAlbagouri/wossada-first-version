@@ -1,85 +1,112 @@
 <template>
   <div class="product-card">
-    <!-- الصورة -->
-    <NuxtLink to="/product/product">
+    <NuxtLink :to="`/product/${product.slug}`">
       <div class="product-image">
-        <div class="icon-wrapper">
-          <!-- ✅ تغيير الأيقونة حسب السياق -->
+        <div class="icon-wrapper" @click.stop.prevent="handleToggleWishlist">
           <Icon
-            :name="inWishlist ? 'ph:heart-fill' : 'ph:heart-light'"
+            :name="
+              wishlistStore.isInWishlist(product.id)
+                ? 'ph:heart-fill'
+                : 'ph:heart-light'
+            "
             class="icon-md"
+            :class="{ 'active-heart': wishlistStore.isInWishlist(product.id) }"
           />
         </div>
+
         <div class="gift">
           <Icon name="ph:gift-light" class="icon-md" />
           <span class="gift-text">اطلب هديتك</span>
         </div>
-        <img
-          :src="product.image || '/images/products/product1.jpg'"
-          :alt="product.title || 'منتج'"
-          class="image"
-          loading="lazy"
-        />
+
+        <img :src="mainImage" :alt="productName" class="image" loading="lazy" />
+
+        <span v-if="discountPercent" class="discount-badge">
+          {{ discountPercent }}%
+        </span>
       </div>
     </NuxtLink>
 
-    <!-- المحتوى النصي -->
     <div class="product-info">
-      <h3 class="title">{{ product.title || "عنوان المنتج" }}</h3>
+      <h3 class="title">{{ productName }}</h3>
 
-      <!-- السعر -->
       <div class="price-discount">
         <div class="price-section">
-          <span class="new-price">{{ product.price }}ج.م</span>
-          <span class="old-price">{{ product.oldPrice }}ج.م</span>
+          <span class="new-price">{{ formatPrice(activePrice) }} ج.م</span>
+          <span v-if="activeOldPrice" class="old-price">
+            {{ formatPrice(activeOldPrice) }} ج.م
+          </span>
         </div>
-
-        <!-- شارة الخصم -->
-        <span class="discount-badge">{{ product.discount }}</span>
       </div>
 
-      <!-- ✅ استخدام المكون الجديد -->
-      <AddToCartButton
-        v-model:quantity="cartQuantity"
-        @added="handleAddToCart"
-      />
+      <div class="card-actions" @click.stop.prevent>
+        <AddToCartButton
+          :productId="product.id"
+          :max="product.baseStock || 50"
+          :initialQuantity="1"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed } from "vue";
+import { useWishlistStore } from "@/stores/wishlist";
 import AddToCartButton from "@/components/base/AddToCartButton.vue";
 
 const props = defineProps({
-  product: {
-    type: Object,
-    required: true,
-    default: () => ({
-      title: "ترابيزة قهوة خشب كونتر 180 *36 * 30 سم",
-      image: "/images/products/product1.jpg",
-      price: "1,299",
-      oldPrice: "2,599",
-      discount: "-57%",
-    }),
-  },
-  // ✅ prop جديد لتحديد إذا كان في المفضلة
-  inWishlist: {
-    type: Boolean,
-    default: false,
-  },
+  product: { type: Object, required: true },
 });
 
-const cartQuantity = ref(1);
+const wishlistStore = useWishlistStore();
+const { currentLang } = useLanguage();
 
-const handleAddToCart = (quantity) => {
-  console.log(`تمت إضافة ${quantity} من المنتج إلى السلة`);
-  // TODO: إرسال إلى سلة التسوق
+// التبديل بين الإضافة والحذف
+const handleToggleWishlist = async () => {
+  await wishlistStore.toggleWishlist(props.product.id);
 };
+
+// اسم المنتج
+const productName = computed(() => {
+  if (props.product.translations?.length) {
+    const trans = props.product.translations.find(
+      (t) => t.languageCode === "ar",
+    ); // أو استخدم currentLang
+    return trans?.name || props.product.translations[0]?.name;
+  }
+  return props.product.name || "منتج أفنان";
+});
+
+// الصورة
+const mainImage = computed(
+  () => props.product.mainImage || "/images/products/placeholder.jpg",
+);
+
+// حساب الأسعار ديناميكياً من الـ API
+const activePrice = computed(() => {
+  return parseFloat(
+    props.product.baseDiscountPrice || props.product.basePrice || 0,
+  );
+});
+
+const activeOldPrice = computed(() => {
+  return props.product.baseDiscountPrice
+    ? parseFloat(props.product.basePrice)
+    : null;
+});
+
+const discountPercent = computed(() => {
+  if (!activeOldPrice.value || !activePrice.value) return null;
+  return Math.round(
+    ((activeOldPrice.value - activePrice.value) / activeOldPrice.value) * 100,
+  );
+});
+
+const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
 </script>
 
 <style scoped lang="scss">
-/* ... نفس الـ CSS السابق بدون تغيير ... */
 .product-card {
   width: 100%;
   max-width: 400px;
@@ -97,7 +124,10 @@ const handleAddToCart = (quantity) => {
   }
 }
 
-/* الصورة */
+.card-actions {
+  padding: 0 16px 16px;
+}
+
 .product-image {
   height: 300px;
   overflow: hidden;
@@ -118,6 +148,8 @@ const handleAddToCart = (quantity) => {
     justify-content: center;
     background-color: var(--color-green-white);
     border-radius: 10px;
+    z-index: 1;
+
     span {
       color: var(--color-green-primary);
       font-size: 30px;
@@ -134,6 +166,7 @@ const handleAddToCart = (quantity) => {
     display: flex;
     align-items: center;
     gap: 5px;
+    z-index: 1;
   }
 
   .gift-text {
@@ -141,8 +174,17 @@ const handleAddToCart = (quantity) => {
     font-weight: 600;
   }
 
-  .gift .icon-md {
-    font-size: 18px;
+  .discount-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: var(--color-yellow-secondary);
+    color: var(--color-green-darker);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    z-index: 1;
   }
 
   .image {
@@ -153,7 +195,6 @@ const handleAddToCart = (quantity) => {
   }
 }
 
-/* المحتوى */
 .product-info {
   padding: 16px;
   text-align: right;
@@ -166,27 +207,23 @@ const handleAddToCart = (quantity) => {
   color: #222;
   margin: 0 0 8px 0;
   line-height: 1.4;
-}
-
-/* قسم السعر */
-.price-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .price-discount {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 12px;
+}
 
-  .old-price {
-    font-size: 14px;
-    color: #999;
-    text-decoration: line-through;
-    font-weight: 500;
-  }
+.price-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
   .new-price {
     font-size: 18px;
@@ -194,16 +231,11 @@ const handleAddToCart = (quantity) => {
     color: var(--color-green-primary);
   }
 
-  .discount-badge {
-    display: inline-block;
-    background: var(--color-yellow-secondary);
-    color: var(--color-green-darker);
-    font-size: 12px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  .old-price {
+    font-size: 14px;
+    color: #999;
+    text-decoration: line-through;
+    font-weight: 500;
   }
 }
 </style>

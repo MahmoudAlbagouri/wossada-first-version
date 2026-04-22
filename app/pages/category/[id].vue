@@ -1,56 +1,24 @@
 <template>
   <div class="category-page">
-    <!-- العنوان وعدد النتائج -->
+    <!-- العنوان -->
     <div class="category-header">
       <h1 class="category-title">
-        {{ currentCategory?.name || "جميع المنتجات" }}
+        {{ store.category?.name || "جميع المنتجات" }}
       </h1>
       <div class="results-count">
-        نتيجة <span class="highlight">{{ totalProducts }}</span> منتج
+        نتيجة <span class="highlight">{{ store.meta.totalItems }}</span> منتج
       </div>
     </div>
 
-    <!-- زر الفلترة للشاشات الصغيرة -->
+    <!-- زر الفلترة للجوال -->
     <button v-if="isMobile" class="mobile-filter-btn" @click="openFilterModal">
-      <Icon name="ph-funnel-simple" class="filter-icon" />
+      <Icon name="ph:funnel-simple" class="filter-icon" />
       فلترة
     </button>
 
     <div class="category-layout">
-      <!-- الفلتر الجانبي (للشاشات الكبيرة) -->
+      <!-- الفلتر الجانبي -->
       <aside v-if="!isMobile" class="filter-sidebar">
-        <!-- Accordion: التصنيف -->
-        <div class="accordion-item">
-          <button
-            class="accordion-header"
-            @click="toggleAccordion('categories')"
-          >
-            <span>التصنيف</span>
-            <Icon
-              :name="
-                openAccordion === 'categories' ? 'ph:caret-up' : 'ph:caret-down'
-              "
-              class="accordion-icon"
-            />
-          </button>
-          <div
-            v-show="openAccordion === 'categories'"
-            class="accordion-content"
-          >
-            <div class="filter-options">
-              <BaseCheckbox
-                v-for="cat in categories"
-                :key="cat.id"
-                v-model="selectedCategories"
-                :label="cat.name"
-                :id="`cat-${cat.id}`"
-                :value="cat.id"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Accordion: السعر -->
         <div class="accordion-item">
           <button class="accordion-header" @click="toggleAccordion('price')">
             <span>السعر</span>
@@ -58,67 +26,44 @@
               :name="
                 openAccordion === 'price' ? 'ph:caret-up' : 'ph:caret-down'
               "
-              class="accordion-icon"
             />
           </button>
           <div v-show="openAccordion === 'price'" class="accordion-content">
-            <div class="price-range">
-              <div class="price-values">
-                <span>من: {{ formatPrice(priceMin) }}</span>
-                <span>إلى: {{ formatPrice(priceMax) }}</span>
-              </div>
-              <ClientOnly>
-                <vue3-slider
-                  v-model="priceRange"
-                  :min="0"
-                  :max="10000"
-                  :tooltip="true"
-                  :tooltip-formatter="formatPrice"
-                  :range="true"
-                  class="custom-slider"
-                />
-              </ClientOnly>
-              <div class="price-inputs">
-                <input
-                  type="number"
-                  v-model.number="priceMin"
-                  min="0"
-                  max="10000"
-                  class="price-input"
-                />
-                <input
-                  type="number"
-                  v-model.number="priceMax"
-                  min="0"
-                  max="10000"
-                  class="price-input"
-                />
-              </div>
+            <div class="price-inputs">
+              <input
+                type="number"
+                v-model.number="priceMin"
+                placeholder="من"
+                class="price-input"
+              />
+              <input
+                type="number"
+                v-model.number="priceMax"
+                placeholder="إلى"
+                class="price-input"
+              />
             </div>
           </div>
         </div>
 
-        <!-- Accordion: اللون -->
-        <div class="accordion-item">
+        <div class="accordion-item" v-if="store.filters.colors.length">
           <button class="accordion-header" @click="toggleAccordion('colors')">
             <span>اللون</span>
             <Icon
               :name="
                 openAccordion === 'colors' ? 'ph:caret-up' : 'ph:caret-down'
               "
-              class="accordion-icon"
             />
           </button>
           <div v-show="openAccordion === 'colors'" class="accordion-content">
             <div class="color-options">
               <button
-                v-for="color in colors"
+                v-for="color in store.filters.colors"
                 :key="color.id"
                 class="color-btn"
                 :class="{ active: selectedColors.includes(color.id) }"
                 @click="toggleColor(color.id)"
                 :style="{ backgroundColor: color.hex }"
-                :aria-label="color.name"
               >
                 <Icon
                   v-if="selectedColors.includes(color.id)"
@@ -130,31 +75,56 @@
           </div>
         </div>
 
-        <!-- Accordion: نوع اللون -->
-        <div class="accordion-item">
-          <button
-            class="accordion-header"
-            @click="toggleAccordion('colorType')"
-          >
-            <span>نوع اللون</span>
+        <div class="accordion-item" v-if="store.filters.sizes.length">
+          <button class="accordion-header" @click="toggleAccordion('sizes')">
+            <span>الحجم</span>
             <Icon
               :name="
-                openAccordion === 'colorType' ? 'ph:caret-up' : 'ph:caret-down'
+                openAccordion === 'sizes' ? 'ph:caret-up' : 'ph:caret-down'
               "
-              class="accordion-icon"
             />
           </button>
-          <div v-show="openAccordion === 'colorType'" class="accordion-content">
-            <div class="radio-group">
-              <BaseRadio
-                v-for="type in colorTypes"
-                :key="type.value"
-                v-model="selectedColorType"
-                :value="type.value"
-                :label="type.label"
-                :id="`color-type-${type.value}`"
-                name="colorType"
-              />
+          <div v-show="openAccordion === 'sizes'" class="accordion-content">
+            <div class="filter-options">
+              <label
+                v-for="size in store.filters.sizes"
+                :key="size.id"
+                class="filter-label"
+              >
+                <input
+                  type="checkbox"
+                  :value="size.id"
+                  v-model="selectedSizes"
+                />
+                {{ size.value }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item" v-if="store.filters.brands.length">
+          <button class="accordion-header" @click="toggleAccordion('brands')">
+            <span>الماركة</span>
+            <Icon
+              :name="
+                openAccordion === 'brands' ? 'ph:caret-up' : 'ph:caret-down'
+              "
+            />
+          </button>
+          <div v-show="openAccordion === 'brands'" class="accordion-content">
+            <div class="filter-options">
+              <label
+                v-for="brand in store.filters.brands"
+                :key="brand.id"
+                class="filter-label"
+              >
+                <input
+                  type="checkbox"
+                  :value="brand.id"
+                  v-model="selectedBrands"
+                />
+                {{ brand.name }}
+              </label>
             </div>
           </div>
         </div>
@@ -165,47 +135,63 @@
         </div>
       </aside>
 
-      <!-- محتوى المنتجات -->
+      <!-- المنتجات -->
       <main class="products-grid">
-        <!-- شريط الترتيب -->
         <div class="sort-bar">
           <span class="sort-label">ترتيب حسب:</span>
-          <select v-model="sortBy" class="sort-select">
-            <option value="featured">الأكثر رواجًا</option>
-            <option value="price-low">الأقل سعرًا</option>
-            <option value="price-high">الأعلى سعرًا</option>
+          <select v-model="sortBy" class="sort-select" @change="applyFilters">
+            <option value="">الأكثر رواجًا</option>
+            <option value="price_asc">الأقل سعرًا</option>
+            <option value="price_desc">الأعلى سعرًا</option>
             <option value="newest">الأحدث</option>
             <option value="rating">الأعلى تقييمًا</option>
           </select>
         </div>
 
-        <!-- كروت المنتجات -->
-        <div class="products-list">
+        <!-- لودينج -->
+        <div v-if="store.loading" class="loading-grid">
+          <div v-for="i in 8" :key="i" class="skeleton-card"></div>
+        </div>
+
+        <!-- المنتجات -->
+        <div v-else-if="store.products.length" class="products-list">
           <ProductCard
-            v-for="product in displayedProducts"
+            v-for="product in store.products"
             :key="product.id"
             :product="product"
-            :in-wishlist="isInWishlist(product.id)"
-            @add-to-cart="handleAddToCart(product)"
           />
         </div>
 
+        <!-- لا يوجد منتجات -->
+        <div v-else class="empty-state">
+          <Icon name="ph:package" class="empty-icon" />
+          <p>لا توجد منتجات في هذا التصنيف</p>
+        </div>
+
         <!-- Pagination -->
-        <div class="pagination">
+        <div v-if="store.meta.totalPages > 1" class="pagination">
           <button
             class="pagination-btn"
             :disabled="currentPage === 1"
-            @click="currentPage--"
+            @click="changePage(currentPage - 1)"
           >
             ←
           </button>
-          <span class="pagination-info">
-            {{ currentPage }} من {{ totalPages }}
-          </span>
+
+          <button
+            v-for="page in store.meta.totalPages"
+            :key="page"
+            class="pagination-btn"
+            :class="{ active: page === currentPage }"
+            @click="changePage(page)"
+          >
+            {{ page }}
+          </button>
+
           <button
             class="pagination-btn"
-            :disabled="currentPage === totalPages"
-            @click="currentPage++"
+            :disabled="currentPage === store.meta.totalPages"
+            @click="changePage(currentPage + 1)"
           >
             →
           </button>
@@ -213,7 +199,7 @@
       </main>
     </div>
 
-    <!-- Popup الفلترة للشاشات الصغيرة -->
+    <!-- Modal للجوال -->
     <Teleport to="body">
       <div
         v-if="showFilterModal"
@@ -227,169 +213,14 @@
               <Icon name="ph:x" />
             </button>
           </div>
-          <div class="modal-accordions">
-            <div class="accordion-item">
-              <button
-                class="accordion-header"
-                @click="toggleMobileAccordion('categories')"
-              >
-                <span>التصنيف</span>
-                <Icon
-                  :name="
-                    openMobileAccordion === 'categories'
-                      ? 'ph:caret-up'
-                      : 'ph:caret-down'
-                  "
-                  class="accordion-icon"
-                />
+          <div class="modal-body">
+            <!-- نفس محتوى الفلتر -->
+            <div class="filter-actions">
+              <button class="btn-reset" @click="resetFilters">
+                إعادة تعيين
               </button>
-              <div
-                v-show="openMobileAccordion === 'categories'"
-                class="accordion-content"
-              >
-                <div class="filter-options">
-                  <BaseCheckbox
-                    v-for="cat in categories"
-                    :key="cat.id"
-                    v-model="selectedCategories"
-                    :label="cat.name"
-                    :id="`mobile-cat-${cat.id}`"
-                    :value="cat.id"
-                  />
-                </div>
-              </div>
+              <button class="btn-apply" @click="applyAndClose">تطبيق</button>
             </div>
-
-            <div class="accordion-item">
-              <button
-                class="accordion-header"
-                @click="toggleMobileAccordion('price')"
-              >
-                <span>السعر</span>
-                <Icon
-                  :name="
-                    openMobileAccordion === 'price'
-                      ? 'ph:caret-up'
-                      : 'ph:caret-down'
-                  "
-                  class="accordion-icon"
-                />
-              </button>
-              <div
-                v-show="openMobileAccordion === 'price'"
-                class="accordion-content"
-              >
-                <div class="price-range">
-                  <div class="price-values">
-                    <span>من: {{ formatPrice(priceMin) }}</span>
-                    <span>إلى: {{ formatPrice(priceMax) }}</span>
-                  </div>
-                  <ClientOnly>
-                    <vue3-slider
-                      v-model="priceRange"
-                      :min="0"
-                      :max="10000"
-                      :tooltip="true"
-                      :tooltip-formatter="formatPrice"
-                      :range="true"
-                      class="custom-slider"
-                    />
-                  </ClientOnly>
-                  <div class="price-inputs">
-                    <input
-                      type="number"
-                      v-model.number="priceMin"
-                      min="0"
-                      max="10000"
-                      class="price-input"
-                    />
-                    <input
-                      type="number"
-                      v-model.number="priceMax"
-                      min="0"
-                      max="10000"
-                      class="price-input"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="accordion-item">
-              <button
-                class="accordion-header"
-                @click="toggleMobileAccordion('colors')"
-              >
-                <span>اللون</span>
-                <Icon
-                  :name="
-                    openMobileAccordion === 'colors'
-                      ? 'ph:caret-up'
-                      : 'ph:caret-down'
-                  "
-                  class="accordion-icon"
-                />
-              </button>
-              <div
-                v-show="openMobileAccordion === 'colors'"
-                class="accordion-content"
-              >
-                <div class="color-options">
-                  <button
-                    v-for="color in colors"
-                    :key="color.id"
-                    class="color-btn"
-                    :class="{ active: selectedColors.includes(color.id) }"
-                    @click="toggleColor(color.id)"
-                    :style="{ backgroundColor: color.hex }"
-                    :aria-label="color.name"
-                  >
-                    <Icon
-                      v-if="selectedColors.includes(color.id)"
-                      name="ph:check"
-                      class="color-check"
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="accordion-item">
-              <button
-                class="accordion-header"
-                @click="toggleMobileAccordion('colorType')"
-              >
-                <span>نوع اللون</span>
-                <Icon
-                  :name="
-                    openMobileAccordion === 'colorType'
-                      ? 'ph:caret-up'
-                      : 'ph:caret-down'
-                  "
-                  class="accordion-icon"
-                />
-              </button>
-              <div
-                v-show="openMobileAccordion === 'colorType'"
-                class="accordion-content"
-              >
-                <div class="radio-group">
-                  <BaseRadio
-                    v-for="type in colorTypes"
-                    :key="type.value"
-                    v-model="selectedColorType"
-                    :value="type.value"
-                    :label="type.label"
-                    :id="`mobile-color-type-${type.value}`"
-                    name="mobileColorType"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="btn-reset" @click="resetFilters">إعادة تعيين</button>
-            <button class="btn-apply" @click="applyAndClose">تطبيق</button>
           </div>
         </div>
       </div>
@@ -398,411 +229,124 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeMount, watch } from "vue";
-import { useRoute } from "vue-router";
-import ProductCard from "@/components/global/ProductCard.vue";
-import BaseCheckbox from "@/components/base/BaseCheckbox.vue";
-import BaseRadio from "@/components/base/BaseRadio.vue";
-import vue3Slider from "vue3-slider";
+import { ref, watch, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useCategoryProductsStore } from "@/stores/categoryProducts";
 
-// ✅ الحالة
 const route = useRoute();
-const isMobile = ref(false);
-const showFilterModal = ref(false);
-const openAccordion = ref(null);
-const openMobileAccordion = ref(null);
+const router = useRouter();
+const store = useCategoryProductsStore();
+const { currentLang } = useLanguage();
 
-const loading = ref(true);
-const currentPage = ref(1);
-const pageSize = 12;
+const slug = computed(() => route.params.id);
 
-const sortBy = ref("featured");
-const priceMin = ref(0);
-const priceMax = ref(10000);
-const selectedCategories = ref([]);
-const selectedColors = ref([]);
-const selectedColorType = ref("");
+const currentPage = ref(Number(route.query.page) || 1);
+const sortBy = ref(route.query.sortBy || "");
+const priceMin = ref(Number(route.query.minPrice) || 0);
+const priceMax = ref(Number(route.query.maxPrice) || 10000);
 
-// ❗️ categoryId كـ ref، وليس computed، ليتم تحديثه عبر watch
-const categoryId = ref("");
-
-// ✅ مراقبة تغيير المعامل في الرابط
-watch(
-  () => route.params.id,
-  (newId) => {
-    categoryId.value = newId || "";
-    currentPage.value = 1; // إعادة تعيين الصفحة عند تغيير الفئة
-    // يمكنك هنا أيضًا إعادة تعيين الفلاتر إذا أردت
-  },
-  { immediate: true },
+const selectedColors = ref(
+  route.query.colorIds ? route.query.colorIds.split(",") : [],
+);
+const selectedSizes = ref(
+  route.query.sizeIds ? route.query.sizeIds.split(",") : [],
+);
+const selectedBrands = ref(
+  route.query.brandIds ? route.query.brandIds.split(",") : [],
 );
 
-// ✅ مزامنة السلايدر مع الحقول
-const priceRange = computed({
-  get() {
-    return [priceMin.value, priceMax.value];
-  },
-  set(value) {
-    if (Array.isArray(value) && value.length === 2) {
-      priceMin.value = value[0];
-      priceMax.value = value[1];
-    }
-  },
-});
+const buildQuery = () => {
+  const query = { page: currentPage.value, limit: 12 };
+  if (sortBy.value) query.sortBy = sortBy.value;
+  if (priceMin.value > 0) query.minPrice = priceMin.value;
+  if (priceMax.value < 10000) query.maxPrice = priceMax.value;
+  if (selectedColors.value.length)
+    query.colorIds = selectedColors.value.join(",");
+  if (selectedSizes.value.length) query.sizeIds = selectedSizes.value.join(",");
+  if (selectedBrands.value.length)
+    query.brandIds = selectedBrands.value.join(",");
+  return query;
+};
 
-// ✅ أنواع الألوان
-const colorTypes = [
-  { value: "ابيض", label: "أبيض" },
-  { value: "اسود", label: "أسود" },
-  { value: "بني", label: "بني" },
-  { value: "رمادي", label: "رمادي" },
-];
-
-// ✅ بيانات الفئات
-const categories = [
-  { id: "chairs", name: "كراسي" },
-  { id: "tables", name: "طاولات" },
-  { id: "sofas", name: "انتريهات" },
-  { id: "shelves", name: "وحدات تخزين" },
-  { id: "beds", name: "أسرّة" },
-];
-
-// ✅ الفئة الحالية
-const currentCategory = computed(() =>
-  categories.find((cat) => cat.id === categoryId.value),
+await useAsyncData(
+  () => `category-products-${slug.value}-${currentLang.value}`,
+  () => store.fetchCategoryProducts(slug.value, buildQuery()),
+  { lazy: false },
 );
 
-// ✅ ألوان
-const colors = [
-  { id: "green", name: "أخضر", hex: "#2e7d32" },
-  { id: "blue", name: "أزرق", hex: "#1976d2" },
-  { id: "beige", name: "بيج", hex: "#d7ccc8" },
-  { id: "gray", name: "رمادي", hex: "#607d8b" },
-  { id: "brown", name: "بني", hex: "#5d4037" },
-];
+watch(currentLang, async (newLang) => {
+  console.log("🌐 تم تغيير اللغة إلى:", newLang);
+  await store.fetchCategoryProducts(slug.value, buildQuery());
+});
 
-// ✅ بيانات المنتجات - تم جعل كل id فريدًا
-const allProducts = ref([
-  {
-    id: 1,
-    title: "* 36* 180 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product1.jpg",
-    price: "1,299",
-    oldPrice: "2,599",
-    discount: "-57%",
-  },
-  {
-    id: 2,
-    title: "* 40* 200 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product2.jpg",
-    price: "1,499",
-    oldPrice: "2,999",
-    discount: "-50%",
-  },
-  {
-    id: 3,
-    title: "* 32* 160 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product3.jpg",
-    price: "1,099",
-    oldPrice: "2,199",
-    discount: "-50%",
-  },
-  {
-    id: 4,
-    title: "* 38* 190 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product4.jpg",
-    price: "1,399",
-    oldPrice: "2,799",
-    discount: "-50%",
-  },
-  {
-    id: 5,
-    title: "* 34* 170 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product5.jpg",
-    price: "1,199",
-    oldPrice: "2,399",
-    discount: "-50%",
-  },
-  {
-    id: 11,
-    title: "* 36* 180 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product1.jpg",
-    price: "1,299",
-    oldPrice: "2,599",
-    discount: "-57%",
-  },
-  {
-    id: 12,
-    title: "* 40* 200 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product2.jpg",
-    price: "1,499",
-    oldPrice: "2,999",
-    discount: "-50%",
-  },
-  {
-    id: 13,
-    title: "* 32* 160 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product3.jpg",
-    price: "1,099",
-    oldPrice: "2,199",
-    discount: "-50%",
-  },
-  {
-    id: 14,
-    title: "* 38* 190 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product4.jpg",
-    price: "1,399",
-    oldPrice: "2,799",
-    discount: "-50%",
-  },
-  {
-    id: 15,
-    title: "* 34* 170 كونتر خشب قهوة ترابيزة",
-    category: "tables",
-    image: "/images/products/product5.jpg",
-    price: "1,199",
-    oldPrice: "2,399",
-    discount: "-50%",
-  },
-  // beds products — IDs فريدة الآن
-  {
-    id: 20,
-    title: "سرير خشب بحجم كينغ - أول نموذج",
-    category: "tables",
-    image: "/images/products/bed1.jpg",
-    price: "50,000",
-    oldPrice: "75,000",
-    discount: "-33%",
-  },
-  {
-    id: 21,
-    title: "سرير معدني بحجم كوين",
-    category: "beds",
-    image: "/images/products/bed2.jpg",
-    price: "35,000",
-    oldPrice: "50,000",
-    discount: "-30%",
-  },
-  {
-    id: 22,
-    title: "سرير أطفال خشبي",
-    category: "beds",
-    image: "/images/products/bed3.jpg",
-    price: "12,000",
-    oldPrice: "18,000",
-    discount: "-33%",
-  },
-  {
-    id: 23,
-    title: "سرير خشب بحجم كينغ - فاخر",
-    category: "beds",
-    image: "/images/products/bed4.jpg",
-    price: "65,000",
-    oldPrice: "90,000",
-    discount: "-28%",
-  },
-  // باقي المنتجات
-  {
-    id: 24,
-    title: "كرسي مكتب خشب + جلد",
-    category: "chairs",
-    image: "/images/products/chair1.jpg",
-    price: "2,499",
-    oldPrice: "3,999",
-    discount: "-37%",
-  },
-  {
-    id: 25,
-    title: "رف خشبي 4 أدراج",
-    category: "shelves",
-    image: "/images/products/shelf1.jpg",
-    price: "899",
-    oldPrice: "1,499",
-    discount: "-40%",
-  },
-  {
-    id: 26,
-    title: "طاولة طعام 6 مقاعد",
-    category: "tables",
-    image: "/images/products/table6.jpg",
-    price: "3,799",
-    oldPrice: "5,999",
-    discount: "-37%",
-  },
-  {
-    id: 27,
-    title: "خزانة ملابس 3 أبواب",
-    category: "shelves",
-    image: "/images/products/shelf2.jpg",
-    price: "4,299",
-    oldPrice: "6,999",
-    discount: "-39%",
-  },
-  {
-    id: 28,
-    title: "كرسي استرخاء مع وسادة",
-    category: "chairs",
-    image: "/images/products/chair2.jpg",
-    price: "1,899",
-    oldPrice: "2,799",
-    discount: "-32%",
-  },
-]);
-
-const wishlist = ref([1, 20, 26]);
-const isInWishlist = (id) => wishlist.value.includes(id);
-
-// ✅ المنتجات حسب الفئة (بدون فلترة أخرى)
-const productsByCategory = computed(() => {
-  if (!categoryId.value || categoryId.value === "all") {
-    return allProducts.value;
+watch(slug, async (newSlug) => {
+  if (newSlug) {
+    resetFilters(false);
+    await store.fetchCategoryProducts(newSlug, buildQuery());
   }
-  return allProducts.value.filter((p) => p.category === categoryId.value);
 });
 
-// ✅ الفلترة الكاملة
-const filteredProducts = computed(() => {
-  return productsByCategory.value.filter((p) => {
-    const price = parseFloat(p.price.replace(/,/g, ""));
-    if (price < priceMin.value || price > priceMax.value) return false;
+const applyFilters = async () => {
+  currentPage.value = 1;
+  router.push({ query: buildQuery() });
+  await store.fetchCategoryProducts(slug.value, buildQuery());
+};
 
-    if (selectedCategories.value.length > 0) {
-      const hasCat = selectedCategories.value.some((cat) => p.category === cat);
-      if (!hasCat) return false;
-    }
+const changePage = async (page) => {
+  currentPage.value = page;
+  router.push({ query: buildQuery() });
+  await store.fetchCategoryProducts(slug.value, buildQuery());
+  if (process.client) window.scrollTo({ top: 0, behavior: "smooth" });
+};
 
-    if (selectedColors.value.length > 0) {
-      const hasColor = selectedColors.value.some((colorId) =>
-        p.title
-          .toLowerCase()
-          .includes(colors.find((c) => c.id === colorId)?.name.toLowerCase()),
-      );
-      if (!hasColor) return false;
-    }
+const resetFilters = async (fetch = true) => {
+  currentPage.value = 1;
+  sortBy.value = "";
+  priceMin.value = 0;
+  priceMax.value = 10000;
+  selectedColors.value = [];
+  selectedSizes.value = [];
+  selectedBrands.value = [];
 
-    return true;
-  });
-});
-
-// ✅ عدد المنتجات بعد الفلترة
-const totalProducts = computed(() => filteredProducts.value.length);
-
-// ✅ صفحات التنقل
-const totalPages = computed(() => Math.ceil(totalProducts.value / pageSize));
-const startIndex = computed(() => (currentPage.value - 1) * pageSize);
-const endIndex = computed(() => startIndex.value + pageSize);
-
-// ✅ المنتجات المعروضة
-const displayedProducts = computed(() => {
-  let result = [...filteredProducts.value];
-
-  switch (sortBy.value) {
-    case "price-low":
-      result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-      break;
-    case "price-high":
-      result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-      break;
-    case "newest":
-      result.reverse();
-      break;
+  if (fetch) {
+    router.push({ query: {} });
+    await store.fetchCategoryProducts(slug.value, buildQuery());
   }
+};
 
-  return result.slice(startIndex.value, endIndex.value);
-});
-
-// ✅ دوال الفلتر
 const toggleColor = (colorId) => {
-  if (selectedColors.value.includes(colorId)) {
-    selectedColors.value = selectedColors.value.filter((c) => c !== colorId);
+  const index = selectedColors.value.indexOf(colorId);
+  if (index > -1) {
+    selectedColors.value.splice(index, 1);
   } else {
     selectedColors.value.push(colorId);
   }
 };
 
-const resetFilters = () => {
-  priceMin.value = 0;
-  priceMax.value = 10000;
-  selectedCategories.value = [];
-  selectedColors.value = [];
-  selectedColorType.value = "";
-  sortBy.value = "featured";
-  currentPage.value = 1;
+const isMobile = ref(false);
+const showFilterModal = ref(false);
+const openAccordion = ref(null);
+
+const toggleAccordion = (section) => {
+  openAccordion.value = openAccordion.value === section ? null : section;
 };
 
-const applyFilters = () => {
-  console.log("الفلاتر المطبقة:", {
-    price: [priceMin.value, priceMax.value],
-    categories: selectedCategories.value,
-    colors: selectedColors.value,
-    colorType: selectedColorType.value,
-    sort: sortBy.value,
-  });
-};
-
-const handleAddToCart = (product) => {
-  console.log(`تم إضافة "${product.title}" إلى السلة`);
-};
-
-// ✅ دوال الـ Modal
-const openFilterModal = () => {
-  showFilterModal.value = true;
-};
-
-const closeFilterModal = () => {
-  showFilterModal.value = false;
-};
-
+const openFilterModal = () => (showFilterModal.value = true);
+const closeFilterModal = () => (showFilterModal.value = false);
 const applyAndClose = () => {
   applyFilters();
   closeFilterModal();
 };
 
-// ✅ دوال الـ Accordion
-const toggleAccordion = (section) => {
-  openAccordion.value = openAccordion.value === section ? null : section;
-};
-
-const toggleMobileAccordion = (section) => {
-  openMobileAccordion.value =
-    openMobileAccordion.value === section ? null : section;
-};
-
-// ✅ تنسيق السعر
-const formatPrice = (value) => {
-  return new Intl.NumberFormat("ar-EG").format(value) + " ج.م";
-};
-
-// ✅ كشف حجم الشاشة
-const checkScreenSize = () => {
-  isMobile.value = typeof window !== "undefined" && window.innerWidth <= 768;
-};
-
-onBeforeMount(() => {
-  checkScreenSize();
-  if (typeof window !== "undefined") {
-    window.addEventListener("resize", checkScreenSize);
-  }
-});
-
 onMounted(() => {
-  setTimeout(() => {
-    loading.value = false;
-  }, 300);
+  isMobile.value = window.innerWidth <= 768;
+  window.addEventListener("resize", () => {
+    isMobile.value = window.innerWidth <= 768;
+  });
 });
 </script>
 
 <style scoped lang="scss">
-/* ========== الأنماط العامة ========== */
 .category-page {
   background-color: var(--color-green-white);
   padding: 20px;
@@ -834,7 +378,6 @@ onMounted(() => {
   }
 }
 
-/* ========== زر الفلترة للجوال ========== */
 .mobile-filter-btn {
   display: none;
   align-items: center;
@@ -848,14 +391,8 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   margin-bottom: 20px;
-  width: fit-content;
-
-  .filter-icon {
-    font-size: 20px;
-  }
 }
 
-/* ========== التنسيق الرئيسي ========== */
 .category-layout {
   display: flex;
   gap: 24px;
@@ -865,7 +402,6 @@ onMounted(() => {
   }
 }
 
-/* ========== الفلتر الجانبي ========== */
 .filter-sidebar {
   width: 280px;
   flex-shrink: 0;
@@ -873,18 +409,14 @@ onMounted(() => {
   border-radius: 12px;
   padding: 20px;
   box-shadow: var(--shadow-2);
+  height: fit-content;
 }
 
-/* ========== Accordions ========== */
 .accordion-item {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-
-  &:last-child {
-    margin-bottom: 0;
-  }
 }
 
 .accordion-header {
@@ -896,18 +428,13 @@ onMounted(() => {
   background: var(--color-green-light-active);
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-green-darker);
   transition: background 0.3s;
 
   &:hover {
     background: var(--color-green-light-hover);
-  }
-
-  .accordion-icon {
-    font-size: 20px;
-    transition: transform 0.3s;
   }
 }
 
@@ -917,63 +444,17 @@ onMounted(() => {
   border-top: 1px solid #eee;
 }
 
-/* ========== الفلاتر ========== */
-.filter-options {
+.price-inputs {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+  gap: 10px;
 
-.price-range {
-  .price-values {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 12px;
+  .price-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
     font-size: 14px;
-    font-weight: 600;
-  }
-
-  .custom-slider {
-    margin: 16px 0;
-    :deep(.vue3-slider) {
-      height: 6px;
-      background: #eee;
-      border-radius: 3px;
-    }
-    :deep(.vue3-slider-process) {
-      background: var(--color-green-primary);
-      border-radius: 3px;
-    }
-    :deep(.vue3-slider-dot) {
-      width: 20px;
-      height: 20px;
-      background: var(--color-green-primary);
-      border: 2px solid white;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      top: -7px;
-    }
-    :deep(.vue3-slider-tooltip) {
-      background: var(--color-green-primary);
-      color: white;
-      border-radius: 4px;
-      padding: 4px 8px;
-      font-size: 12px;
-    }
-  }
-
-  .price-inputs {
-    display: flex;
-    gap: 10px;
-    margin-top: 12px;
-
-    .price-input {
-      flex: 1;
-      padding: 10px 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-      text-align: center;
-    }
+    text-align: center;
   }
 }
 
@@ -1013,10 +494,18 @@ onMounted(() => {
   }
 }
 
-.radio-group {
+.filter-options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+
+  .filter-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
 }
 
 .filter-actions {
@@ -1039,23 +528,15 @@ onMounted(() => {
     background: #f0f4f2;
     color: var(--color-green-darker);
     border: 1px solid #ddd;
-
-    &:hover {
-      background: #e0e7e3;
-    }
   }
 
   .btn-apply {
     background: var(--color-green-primary);
     color: white;
-
-    &:hover {
-      background: var(--color-green-primary);
-    }
+    border: none;
   }
 }
 
-/* ========== محتوى المنتجات ========== */
 .products-grid {
   flex: 1;
 }
@@ -1065,7 +546,6 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
 
   .sort-label {
     font-size: 14px;
@@ -1081,47 +561,89 @@ onMounted(() => {
   }
 }
 
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+
+  .skeleton-card {
+    height: 320px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .products-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
 }
 
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #aaa;
+
+  .empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+
+  p {
+    font-size: 18px;
+  }
+}
+
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   margin-top: 32px;
 
   .pagination-btn {
-    width: 40px;
+    min-width: 40px;
     height: 40px;
     border: 1px solid #ddd;
-    border-radius: 50%;
+    border-radius: 8px;
     background: white;
-    font-size: 16px;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.3s;
+    padding: 0 8px;
+
+    &.active {
+      background: var(--color-green-primary);
+      color: white;
+      border-color: var(--color-green-primary);
+    }
 
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
-    &:hover:not(:disabled) {
-      background: var(--color-green-light);
+    &:hover:not(:disabled):not(.active) {
+      background: var(--color-green-light-active);
       color: var(--color-green-primary);
     }
   }
-
-  .pagination-info {
-    font-size: 14px;
-    color: var(--text-main);
-  }
 }
 
-/* ========== Modal الفلترة ========== */
 .filter-modal-overlay {
   position: fixed;
   top: 0;
@@ -1153,7 +675,6 @@ onMounted(() => {
     h3 {
       font-size: 18px;
       font-weight: 700;
-      color: var(--color-green-darker);
     }
 
     .close-btn {
@@ -1165,42 +686,21 @@ onMounted(() => {
     }
   }
 
-  .modal-accordions {
-    padding: 0 20px 20px;
-  }
-
-  .modal-actions {
-    display: flex;
-    gap: 12px;
+  .modal-body {
     padding: 20px;
-    border-top: 1px solid #eee;
-
-    .btn-reset,
-    .btn-apply {
-      flex: 1;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
   }
 }
 
-/* ========== الاستجابة ========== */
 @media (max-width: 768px) {
   .category-page {
     padding: 12px;
   }
-
   .mobile-filter-btn {
     display: flex;
   }
-
   .filter-sidebar {
     display: none;
   }
-
   .products-list {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }

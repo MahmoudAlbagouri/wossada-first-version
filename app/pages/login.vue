@@ -3,17 +3,22 @@
     <div class="login-card">
       <h1 class="login-title">تسجيل الدخول</h1>
 
+      <!-- عرض أخطاء السيرفر -->
       <div v-if="serverError" class="server-error-message">
         {{ serverError }}
       </div>
 
       <form @submit.prevent="onSubmit" class="login-form">
+        <!-- 
+          تم تغيير النوع إلى text والسماح بأي إدخال 
+          لأن الباك إند يتوقع 'identifier' (إيميل أو تليفون) 
+        -->
         <BaseInput
           v-model="email"
-          label="البريد الإلكتروني *"
-          id="email"
-          type="email"
-          placeholder="example@mail.com"
+          label="البريد الإلكتروني أو رقم الهاتف *"
+          id="identifier"
+          type="text"
+          placeholder="example@mail.com أو 01xxxxxxxxx"
           icon="ph:envelope-simple"
           :error="errors.email"
           :disabled="isSubmitting"
@@ -85,15 +90,17 @@ const authStore = useAuthStore();
 const serverError = ref("");
 const showPassword = ref(false);
 
+// مخطط التحقق من الصحة
+// نسمح بأي نص في حقل الإيميل/الهاتف لأنه قد يكون رقم تليفون
 const schema = yup.object({
   email: yup
     .string()
-    .required("البريد الإلكتروني مطلوب")
-    .email("بريد غير صحيح"),
+    .required("البريد الإلكتروني أو رقم الهاتف مطلوب")
+    .min(3, "يجب إدخال بيانات صحيحة"), // تحقق بسيط من الطول بدلاً من format email الصارم
   password: yup
     .string()
     .required("كلمة المرور مطلوبة")
-    .min(6, "6 أحرف على الأقل"),
+    .min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
 });
 
 const { handleSubmit, errors, isSubmitting } = useForm({
@@ -112,29 +119,31 @@ const togglePassword = () => {
 const onSubmit = handleSubmit(async (values) => {
   serverError.value = "";
   try {
+    // إرسال البيانات للستور
+    // ملاحظة: الـ Store سيقوم بتحويل values.email إلى identifier تلقائياً
     const result = await authStore.login({
       email: values.email,
       password: values.password,
     });
 
     if (result.success) {
-      // التأكد من تحديث البيانات في الستور والكوكيز
       await nextTick();
 
-      // التحقق من وجود التوكن
       const tokenCookie = useCookie("auth_token");
       if (tokenCookie.value) {
-        // إعادة توجيه للمستخدم
+        // نجاح التوجيه للصفحة الرئيسية
         return navigateTo("/");
       } else {
-        serverError.value = "حدث خطأ في حفظ بيانات تسجيل الدخول";
+        serverError.value =
+          "حدث خطأ في حفظ بيانات تسجيل الدخول، يرجى المحاولة مرة أخرى.";
       }
     } else {
-      serverError.value = result.error;
+      serverError.value = result.error || "بيانات الدخول غير صحيحة";
     }
   } catch (e) {
     console.error("Login error:", e);
-    serverError.value = "حدث خطأ غير متوقع، يرجى المحاولة لاحقاً";
+    serverError.value =
+      "حدث خطأ في الاتصال بالسيرفر، يرجى التأكد من تشغيل الباك إند.";
   }
 });
 </script>
@@ -176,6 +185,7 @@ const onSubmit = handleSubmit(async (values) => {
   text-align: center;
   font-size: 14px;
   border: 1px solid #fecaca;
+  animation: shake 0.5s ease-in-out;
 }
 
 .forgit-remember {
@@ -188,6 +198,11 @@ const onSubmit = handleSubmit(async (values) => {
     color: var(--color-green-primary);
     text-decoration: none;
     font-weight: 600;
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: var(--color-green-dark);
+    }
   }
 }
 
@@ -221,6 +236,24 @@ const onSubmit = handleSubmit(async (values) => {
     color: var(--color-green-primary);
     text-decoration: none;
     font-weight: 600;
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: var(--color-green-dark);
+    }
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
   }
 }
 </style>

@@ -1,13 +1,10 @@
 <template>
   <div>
-    <!-- عرض الـ Skeleton أثناء التحميل -->
-    <ProductPageSkeleton v-if="loading" />
+    <ProductPageSkeleton v-if="store.loading" />
 
-    <!-- عرض المحتوى الحقيقي بعد التحميل -->
-    <div v-else class="product-page">
-      <!-- صف رئيسي بنسق جانبي -->
+    <div v-else-if="store.product" class="product-page">
       <div class="product-layout">
-        <!-- السلايدر المزدوج (رئيسي + مصغّر) -->
+        <!-- ===== السلايدر ===== -->
         <div class="product-slider-section">
           <Swiper
             :style="{
@@ -21,11 +18,11 @@
             :modules="modules"
             class="main-swiper"
           >
-            <SwiperSlide v-for="(img, idx) in product.images" :key="idx">
+            <SwiperSlide v-for="(img, idx) in store.allImages" :key="idx">
               <div class="swiper-slide-content">
                 <img
                   :src="img"
-                  :alt="`${product.title} - الصورة ${idx + 1}`"
+                  :alt="`${currentTranslation?.name} - الصورة ${idx + 1}`"
                   class="main-image"
                 />
               </div>
@@ -42,11 +39,11 @@
             :modules="modules"
             class="thumbs-swiper"
           >
-            <SwiperSlide v-for="(img, idx) in product.images" :key="idx">
+            <SwiperSlide v-for="(img, idx) in store.allImages" :key="idx">
               <div class="thumb-slide">
                 <img
                   :src="img"
-                  :alt="`${product.title} - مصغّر ${idx + 1}`"
+                  :alt="`${currentTranslation?.name} - مصغّر ${idx + 1}`"
                   class="thumb-image"
                 />
               </div>
@@ -54,11 +51,10 @@
           </Swiper>
         </div>
 
-        <!-- محتوى المنتج المُحسّن -->
+        <!-- ===== معلومات المنتج ===== -->
         <div class="product-info-section">
-          <!-- العنوان + المفضلة -->
           <div class="product-header">
-            <h1 class="product-title">{{ product.title }}</h1>
+            <h1 class="product-title">{{ currentTranslation?.name }}</h1>
             <button
               class="favorite-btn"
               :class="{ 'is-favorite': isFavorite }"
@@ -74,28 +70,32 @@
             </button>
           </div>
 
-          <span class="product-id">كود: {{ product.id }}</span>
+          <span class="product-id">كود: {{ store.product.id }}</span>
 
-          <!-- الوصف -->
           <div class="product-description">
-            {{ product.description }}
+            {{ currentTranslation?.shortDescription }}
           </div>
 
-          <!-- الألوان -->
-          <div class="options-section">
+          <!-- ===== الألوان ===== -->
+          <div class="options-section" v-if="store.availableColors.length">
             <h3 class="options-title">اللون:</h3>
             <div class="colors-list">
               <button
-                v-for="(color, index) in product.colors"
-                :key="index"
+                v-for="color in store.availableColors"
+                :key="color.id"
                 class="color-option"
-                :class="{ active: selectedColor === color.name }"
+                :class="{
+                  active: selectedColorId === color.id,
+                  'color-disabled': !isColorAvailable(color.id),
+                }"
                 :style="{ backgroundColor: color.hex }"
-                @click="selectColor(color)"
-                :aria-label="`اختر اللون ${color.name}`"
+                :disabled="!isColorAvailable(color.id)"
+                @click="selectColor(color.id)"
+                :title="getTranslationName(color.translations)"
+                aria-label="اختر اللون"
               >
                 <Icon
-                  v-if="selectedColor === color.name"
+                  v-if="selectedColorId === color.id"
                   name="ph:check"
                   class="color-check"
                 />
@@ -103,69 +103,91 @@
             </div>
           </div>
 
-          <!-- المقاسات -->
-          <div class="options-section">
+          <!-- ===== المقاسات ===== -->
+          <div class="options-section" v-if="store.availableSizes.length">
             <h3 class="options-title">المقاس:</h3>
             <div class="sizes-list">
               <button
-                v-for="(size, index) in product.sizes"
-                :key="index"
+                v-for="size in store.availableSizes"
+                :key="size.id"
                 class="size-option"
-                :class="{ active: selectedSize === size }"
-                @click="selectSize(size)"
-                :disabled="size === 'L' && !isInStock"
+                :class="{
+                  active: selectedSizeId === size.id,
+                  unavailable: !isSizeAvailable(size.id),
+                }"
+                :disabled="!isSizeAvailable(size.id)"
+                @click="selectSize(size.id)"
               >
-                {{ size }}
-                <span v-if="size === 'L' && !isInStock" class="out-of-stock"
+                {{ size.type }}
+                <span v-if="!isSizeAvailable(size.id)" class="out-badge"
                   >نفذ</span
                 >
               </button>
             </div>
           </div>
 
-          <!-- السعر -->
-          <div class="price-section">
-            <div class="price-row">
-              <span class="old-price">{{ product.oldPrice }} ج.م</span>
-              <span class="new-price">{{ product.price }} ج.م</span>
+          <!-- ===== الخامات ===== -->
+          <div class="options-section" v-if="store.availableMaterials.length">
+            <h3 class="options-title">الخامة:</h3>
+            <div class="materials-list">
+              <button
+                v-for="material in store.availableMaterials"
+                :key="material.id"
+                class="material-option"
+                :class="{
+                  active: selectedMaterialId === material.id,
+                  unavailable: !isMaterialAvailable(material.id),
+                }"
+                :disabled="!isMaterialAvailable(material.id)"
+                @click="selectMaterial(material.id)"
+              >
+                {{ getTranslationName(material.translations) }}
+                <span v-if="!isMaterialAvailable(material.id)" class="out-badge"
+                  >نفذ</span
+                >
+              </button>
             </div>
-            <span class="discount-badge">{{ product.discount }}</span>
           </div>
 
-          <!-- عداد الكمية + زر الإضافة -->
+          <!-- ===== السعر ===== -->
+          <div class="price-section">
+            <div class="price-row">
+              <span class="old-price" v-if="displayDiscountPercent"
+                >{{ store.product.basePrice }} ج.م</span
+              >
+              <span class="new-price">{{ displayPrice }} ج.م</span>
+            </div>
+            <span class="discount-badge" v-if="displayDiscountPercent">{{
+              displayDiscountPercent
+            }}</span>
+          </div>
+
           <div class="quantity-actions">
             <AddToCartButton
-              v-model:quantity="quantity"
-              :max="10"
-              @added="handleAddToCart"
-              @removed="handleRemoveFromCart"
+              :productId="store.product.id"
+              :variantId="currentVariantId"
+              :max="currentVariantStock || store.product.baseStock"
             />
           </div>
 
-          <!-- مشاركة -->
           <div class="share-section">
             <span>شارك:</span>
             <div class="social-icons">
-              <a href="#" aria-label="سناب شات"
-                ><Icon name="ph:snapchat-logo" class="social-icon"
-              /></a>
-              <a href="#" aria-label="تيك توك"
-                ><Icon name="ph:logo-tiktok" class="social-icon"
-              /></a>
               <a href="#" aria-label="فيسبوك"
                 ><Icon name="ph:facebook-logo" class="social-icon"
               /></a>
               <a href="#" aria-label="إنستغرام"
                 ><Icon name="ph:instagram-logo" class="social-icon"
               /></a>
-              <a href="#" aria-label="يوتيوب"
-                ><Icon name="ph:youtube-logo" class="social-icon"
+              <a href="#" aria-label="تيك توك"
+                ><Icon name="ph:logo-tiktok" class="social-icon"
               /></a>
             </div>
           </div>
         </div>
       </div>
-      <!-- tabs new -->
+
+      <!-- ===== Tabs ===== -->
       <div class="tabs-section">
         <div class="tabs-nav">
           <button
@@ -180,100 +202,162 @@
         </div>
 
         <div class="tabs-content">
+          <!-- وصف -->
           <div v-if="activeTab === 'description'" class="tab-pane">
             <h3>الوصف التفصيلي</h3>
-            <p>
-              هذا المنتج مصنوع من خشب المعرف عالي الجودة، مع هيكل متين يضمن
-              المتانة لسنوات. القماش الخارجي من نوع كتان فاخر مقاوم للتمزق،
-              وملمسه ناعم جدًّا يمنح راحة استثنائية. تم تصميمه ليتناسب مع جميع
-              أنواع الديكورات الحديثة والكلاسيكية.
-            </p>
-            <ul class="features-list">
-              <li>الوزن: 45 كجم</li>
-              <li>الأبعاد: 200 × 80 × 90 سم</li>
-              <li>الضمان: سنتان على الهيكل، سنة على القماش</li>
-              <li>الصيانة: تنظيف بقطعة قماش مبللة</li>
-            </ul>
+            <p>{{ currentTranslation?.longDescription }}</p>
           </div>
 
+          <!-- مواصفات -->
           <div v-else-if="activeTab === 'specifications'" class="tab-pane">
             <h3>المواصفات الفنية</h3>
             <table class="specs-table">
               <tbody>
-                <tr>
-                  <td>العلامة التجارية</td>
-                  <td>كاساديا</td>
+                <tr v-if="store.product.brand">
+                  <td>الماركة</td>
+                  <td>
+                    <div class="spec-brand">
+                      <img
+                        v-if="store.product.brand.logo"
+                        :src="store.product.brand.logo"
+                        :alt="getBrandName(store.product.brand)"
+                        class="spec-brand-logo"
+                        @error="$event.target.src = '/images/placeholder.jpg'"
+                      />
+                      <span>{{ getBrandName(store.product.brand) }}</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr
+                  v-for="(value, key) in currentTranslation?.specifications"
+                  :key="key"
+                >
+                  <td>{{ key }}</td>
+                  <td>{{ value }}</td>
+                </tr>
+                <tr v-if="store.product.weight">
+                  <td>الوزن</td>
+                  <td>{{ store.product.weight }} كجم</td>
+                </tr>
+                <tr
+                  v-if="
+                    store.product.width ||
+                    store.product.height ||
+                    store.product.length
+                  "
+                >
+                  <td>الأبعاد (ع × ا × ط)</td>
+                  <td>
+                    {{ store.product.width || 0 }} ×
+                    {{ store.product.height || 0 }} ×
+                    {{ store.product.length || 0 }} سم
+                  </td>
                 </tr>
                 <tr>
-                  <td>المواد</td>
-                  <td>خشب معرف + قماش كتان فاخر</td>
-                </tr>
-                <tr>
-                  <td>الوزن الصافي</td>
-                  <td>45 كجم</td>
-                </tr>
-                <tr>
-                  <td>الأبعاد (طول × عرض × ارتفاع)</td>
-                  <td>200 × 80 × 90 سم</td>
-                </tr>
-                <tr>
-                  <td>الضمان</td>
-                  <td>سنتان على الهيكل، سنة على القماش</td>
-                </tr>
-                <tr>
-                  <td>البلد المصنع</td>
-                  <td>مصر</td>
+                  <td>الشحن المجاني</td>
+                  <td>{{ store.product.isFreeShipping ? "نعم" : "لا" }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
+          <!-- تقييمات -->
           <div v-else-if="activeTab === 'reviews'" class="tab-pane">
-            <h3>التقييمات ومراجعات العملاء</h3>
-            <div class="review-item" v-for="review in reviews" :key="review.id">
-              <div class="review-header">
-                <span class="review-author">{{ review.author }}</span>
-                <div class="review-rating">
-                  <Icon
-                    name="ph:star-fill"
-                    v-for="i in 5"
-                    :key="i"
-                    :class="{ filled: i <= review.rating }"
-                  />
+            <h3>
+              التقييمات ومراجعات العملاء
+              <span class="reviews-count" v-if="store.reviews.length"
+                >({{ store.reviews.length }})</span
+              >
+            </h3>
+            <div v-if="store.reviewsLoading" class="reviews-loading">
+              <div class="skeleton-review" v-for="i in 3" :key="i"></div>
+            </div>
+            <template v-else-if="store.reviews.length">
+              <div
+                v-for="review in store.reviews"
+                :key="review.id"
+                class="review-item"
+              >
+                <div class="review-header">
+                  <div class="review-author-info">
+                    <div class="author-avatar">
+                      {{ review.user?.name?.charAt(0) || "؟" }}
+                    </div>
+                    <span class="review-author">{{
+                      review.user?.name || "مستخدم"
+                    }}</span>
+                  </div>
+                  <div class="review-rating">
+                    <Icon
+                      name="ph:star-fill"
+                      v-for="i in 5"
+                      :key="i"
+                      :class="{ filled: i <= review.rating }"
+                    />
+                  </div>
+                </div>
+                <p class="review-text">{{ review.comment }}</p>
+                <div class="review-meta">
+                  <span>{{ formatDate(review.createdAt) }}</span>
                 </div>
               </div>
-              <p class="review-text">{{ review.text }}</p>
-              <div class="review-meta">
-                <span>{{ review.date }}</span>
-                <span>•</span>
-                <span>{{ review.helpful }} شخص وجدوا هذه المراجعة مفيدة</span>
-              </div>
-            </div>
+            </template>
+            <p v-else class="no-reviews">
+              لا توجد تقييمات بعد. كن أول من يقيّم!
+            </p>
 
             <div class="add-review-section">
               <h4>اكتب مراجعتك</h4>
+              <div v-if="store.submitError" class="review-error">
+                <Icon name="ph:warning-circle" class="error-icon" />{{
+                  store.submitError
+                }}
+              </div>
+              <div v-if="reviewSubmitted" class="review-success">
+                <Icon name="ph:check-circle" class="success-icon" />تم إرسال
+                تقييمك بنجاح، شكراً لك!
+              </div>
               <textarea
-                v-model="newReview.text"
+                v-model="newReview.comment"
                 placeholder="شارك تجربتك مع هذا المنتج..."
                 rows="4"
                 class="review-input"
+                :disabled="store.submitLoading"
               ></textarea>
               <div class="review-footer">
                 <div class="rating-selector">
                   <span>التقييم:</span>
                   <div class="stars">
                     <Icon
-                      name="ph:star"
+                      name="ph:star-fill"
                       v-for="i in 5"
                       :key="i"
-                      @click="newReview.rating = i"
-                      :class="{ filled: i <= newReview.rating }"
+                      @click="!store.submitLoading && (newReview.rating = i)"
+                      :class="{
+                        filled: i <= newReview.rating,
+                        disabled: store.submitLoading,
+                      }"
                       class="star-icon"
                     />
                   </div>
                 </div>
-                <button class="btn-submit-review" @click="submitReview">
-                  إرسال المراجعة
+                <button
+                  class="btn-submit-review"
+                  @click="handleSubmitReview"
+                  :disabled="
+                    store.submitLoading ||
+                    !newReview.comment.trim() ||
+                    newReview.rating === 0
+                  "
+                >
+                  <Icon
+                    v-if="store.submitLoading"
+                    name="ph:spinner"
+                    class="spin"
+                  />
+                  {{
+                    store.submitLoading ? "جاري الإرسال..." : "إرسال المراجعة"
+                  }}
                 </button>
               </div>
             </div>
@@ -281,57 +365,226 @@
         </div>
       </div>
 
-      <!-- منتجات ذات صلة باستخدام MainSlider -->
       <MainSlider
         title="منتجات ذات صلة"
         highlight="مشاهدة المزيد"
-        :products="relatedProducts"
+        :products="[]"
       />
+    </div>
+
+    <div v-else class="error-state">
+      <Icon name="ph:warning" class="error-icon" />
+      <p>لم يتم العثور على المنتج</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
+import { useRoute } from "vue-router";
 import { Swiper, SwiperSlide } from "swiper/vue";
 import { FreeMode, Navigation, Thumbs } from "swiper/modules";
-
-// ✅ المكونات
+import { useProductDetailStore } from "@/stores/productDetail";
+import { useCartStore } from "@/stores/cart";
 import ProductPageSkeleton from "@/components/skeletons/ProductPageSkeleton.vue";
-import MainSlider from "@/components/global/MainSlider.vue";
 import AddToCartButton from "@/components/base/AddToCartButton.vue";
 
-// ✅ الحالة
-const loading = ref(true);
-const product = ref(null);
-const relatedProducts = ref([]);
+const route = useRoute();
+const store = useProductDetailStore();
+const cartStore = useCartStore();
+const { currentLang } = useLanguage();
+
+const slug = computed(() => route.params.id);
+const currentTranslation = computed(() => store.translation(currentLang.value));
+
+// ===== جلب البيانات SSR =====
+await useAsyncData(
+  () => `product-detail-${slug.value}-${currentLang.value}`,
+  async () => {
+    if (!slug.value) return null;
+    const product = await store.fetchProduct(slug.value);
+    if (product?.id) await store.fetchReviews(product.id);
+    return product ?? null;
+  },
+  { lazy: false },
+);
+
+watch(currentLang, async () => {
+  if (!slug.value) return;
+  await store.fetchProduct(slug.value);
+});
+
+watch(slug, async (newSlug) => {
+  if (!newSlug) return;
+  store.resetState();
+  const product = await store.fetchProduct(newSlug);
+  if (product?.id) await store.fetchReviews(product.id);
+});
+
+// ===== الاختيارات =====
 const thumbsSwiper = ref(null);
-const quantity = ref(1);
-
-// ✅ حالة المفضلة
+const modules = [FreeMode, Navigation, Thumbs];
 const isFavorite = ref(false);
-const toggleFavorite = () => {
-  isFavorite.value = !isFavorite.value;
-  console.log(`المفضلة: ${isFavorite.value ? "مضاف" : "محذوف"}`);
+const selectedColorId = ref(null);
+const selectedSizeId = ref(null);
+const selectedMaterialId = ref(null);
+
+watch(
+  () => store.availableColors,
+  (c) => {
+    if (c.length && !selectedColorId.value) selectedColorId.value = c[0].id;
+  },
+  { immediate: true },
+);
+watch(
+  () => store.availableSizes,
+  (s) => {
+    if (s.length && !selectedSizeId.value) selectedSizeId.value = s[0].id;
+  },
+  { immediate: true },
+);
+watch(
+  () => store.availableMaterials,
+  (m) => {
+    if (m.length && !selectedMaterialId.value)
+      selectedMaterialId.value = m[0].id;
+  },
+  { immediate: true },
+);
+
+// ===== منطق الـ Collection =====
+const isColorAvailable = (colorId) => {
+  if (!store.product?.variants) return false;
+  return store.product.variants.some((v) => {
+    const matchColor = v.color?.id === colorId;
+    const matchSize =
+      !selectedSizeId.value || v.size?.id === selectedSizeId.value;
+    const matchMaterial =
+      !selectedMaterialId.value || v.material?.id === selectedMaterialId.value;
+    return matchColor && matchSize && matchMaterial && (v.stock ?? 0) > 0;
+  });
 };
 
-// ✅ خيارات المنتج
-const selectedColor = ref("أخضر");
-const selectedSize = ref("M");
-const isInStock = ref(false);
-
-const selectColor = (color) => {
-  selectedColor.value = color.name;
-  console.log("اللون المختار:", color.name);
+const isSizeAvailable = (sizeId) => {
+  if (!store.product?.variants) return false;
+  return store.product.variants.some((v) => {
+    const matchSize = v.size?.id === sizeId;
+    const matchColor =
+      !selectedColorId.value || v.color?.id === selectedColorId.value;
+    const matchMaterial =
+      !selectedMaterialId.value || v.material?.id === selectedMaterialId.value;
+    return matchSize && matchColor && matchMaterial && (v.stock ?? 0) > 0;
+  });
 };
 
-const selectSize = (size) => {
-  if (size === "L" && !isInStock.value) return;
-  selectedSize.value = size;
-  console.log("المقاس المختار:", size);
+const isMaterialAvailable = (materialId) => {
+  if (!store.product?.variants) return false;
+  return store.product.variants.some((v) => {
+    const matchMaterial = v.material?.id === materialId;
+    const matchColor =
+      !selectedColorId.value || v.color?.id === selectedColorId.value;
+    const matchSize =
+      !selectedSizeId.value || v.size?.id === selectedSizeId.value;
+    return matchMaterial && matchColor && matchSize && (v.stock ?? 0) > 0;
+  });
 };
 
-// ✅ Tabs
+const selectColor = (colorId) => {
+  selectedColorId.value = colorId;
+  if (selectedSizeId.value && !isSizeAvailable(selectedSizeId.value)) {
+    selectedSizeId.value =
+      store.availableSizes.find((s) => isSizeAvailable(s.id))?.id || null;
+  }
+  if (
+    selectedMaterialId.value &&
+    !isMaterialAvailable(selectedMaterialId.value)
+  ) {
+    selectedMaterialId.value =
+      store.availableMaterials.find((m) => isMaterialAvailable(m.id))?.id ||
+      null;
+  }
+};
+
+const selectSize = (sizeId) => {
+  if (!isSizeAvailable(sizeId)) return;
+  selectedSizeId.value = sizeId;
+  if (selectedColorId.value && !isColorAvailable(selectedColorId.value)) {
+    selectedColorId.value =
+      store.availableColors.find((c) => isColorAvailable(c.id))?.id || null;
+  }
+  if (
+    selectedMaterialId.value &&
+    !isMaterialAvailable(selectedMaterialId.value)
+  ) {
+    selectedMaterialId.value =
+      store.availableMaterials.find((m) => isMaterialAvailable(m.id))?.id ||
+      null;
+  }
+};
+
+const selectMaterial = (materialId) => {
+  if (!isMaterialAvailable(materialId)) return;
+  selectedMaterialId.value = materialId;
+  if (selectedColorId.value && !isColorAvailable(selectedColorId.value)) {
+    selectedColorId.value =
+      store.availableColors.find((c) => isColorAvailable(c.id))?.id || null;
+  }
+  if (selectedSizeId.value && !isSizeAvailable(selectedSizeId.value)) {
+    selectedSizeId.value =
+      store.availableSizes.find((s) => isSizeAvailable(s.id))?.id || null;
+  }
+};
+
+// ===== الـ Variant والسعر =====
+const currentVariantId = computed(() =>
+  store.findVariantId(
+    selectedColorId.value,
+    selectedSizeId.value,
+    selectedMaterialId.value,
+  ),
+);
+
+const currentVariantStock = computed(() =>
+  store.variantStock(
+    selectedColorId.value,
+    selectedSizeId.value,
+    selectedMaterialId.value,
+  ),
+);
+
+const displayPrice = computed(() => {
+  if (
+    selectedColorId.value ||
+    selectedSizeId.value ||
+    selectedMaterialId.value
+  ) {
+    const vPrice = store.variantPrice(
+      selectedColorId.value,
+      selectedSizeId.value,
+      selectedMaterialId.value,
+    );
+    if (vPrice !== null && !isNaN(vPrice)) return vPrice;
+  }
+  return store.finalPrice;
+});
+
+const displayDiscountPercent = computed(() => {
+  const base = parseFloat(store.product?.basePrice || 0);
+  const current = parseFloat(displayPrice.value || 0);
+  if (!base || !current || current >= base) return null;
+  return `-${Math.round(((base - current) / base) * 100)}%`;
+});
+
+// ===== دوال مساعدة =====
+const getTranslationName = (translations, lang = currentLang.value) => {
+  if (!translations?.length) return "";
+  const t = translations.find((t) => t.languageCode === lang);
+  return t?.name || translations[0]?.name || "";
+};
+
+const getBrandName = (brand) => getTranslationName(brand?.translations);
+
+// ===== Tabs =====
 const activeTab = ref("description");
 const tabs = [
   { id: "description", title: "الوصف" },
@@ -339,169 +592,60 @@ const tabs = [
   { id: "reviews", title: "التقييمات ومراجعات المنتج" },
 ];
 
-// ✅ مراجعات العملاء
-const reviews = ref([
-  {
-    id: 1,
-    author: "أحمد محمد",
-    rating: 5,
-    text: "منتج ممتاز! الجودة عالية جدًا، والتصميم أنيق. وصل في الوقت المحدد وبدون أي خدوش.",
-    date: "2026-01-15",
-    helpful: 24,
-  },
-  {
-    id: 2,
-    author: "سارة علي",
-    rating: 4,
-    text: "الراحة ممتازة، لكن لونه في الصورة يختلف قليلاً عن الواقع. مع ذلك، أنا راضية جدًا.",
-    date: "2026-01-10",
-    helpful: 18,
-  },
-  {
-    id: 3,
-    author: "محمد حسن",
-    rating: 5,
-    text: "أفضل اقتناء هذا العام! الهيكل متين جدًا، والخياطة دقيقة. أنصح به بشدة.",
-    date: "2026-01-05",
-    helpful: 31,
-  },
-]);
+// ===== التقييمات =====
+const newReview = ref({ comment: "", rating: 0 });
+const reviewSubmitted = ref(false);
 
-const newReview = ref({
-  text: "",
-  rating: 0,
-});
-
-const submitReview = () => {
-  if (!newReview.value.text.trim() || newReview.value.rating === 0) return;
-  const review = {
-    id: reviews.value.length + 1,
-    author: "أنا",
+const handleSubmitReview = async () => {
+  if (!newReview.value.comment.trim() || newReview.value.rating === 0) return;
+  reviewSubmitted.value = false;
+  const result = await store.submitReview({
+    productId: store.product.id,
     rating: newReview.value.rating,
-    text: newReview.value.text,
-    date: new Date().toISOString().split("T")[0],
-    helpful: 0,
-  };
-  reviews.value.unshift(review);
-  newReview.value.text = "";
-  newReview.value.rating = 0;
-  alert("شكرًا لمراجعتك! سيتم مراجعتها soon.");
+    comment: newReview.value.comment,
+  });
+  if (result?.success) {
+    newReview.value = { comment: "", rating: 0 };
+    reviewSubmitted.value = true;
+    setTimeout(() => {
+      reviewSubmitted.value = false;
+    }, 4000);
+  }
 };
 
-// ✅ الوحدات
-const modules = [FreeMode, Navigation, Thumbs];
-
-// ✅ دوال swiper
 const setThumbsSwiper = (swiper) => {
   thumbsSwiper.value = swiper;
 };
-
-// ✅ محاكاة جلب البيانات
-const fetchProductData = () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        product: {
-          id: "63204",
-          title: "انتريه كاساديا",
-          images: [
-            "/images/products/product1.jpg",
-            "/images/products/product2.jpg",
-            "/images/products/product3.jpg",
-            "/images/products/product4.jpg",
-            "/images/products/product5.jpg",
-          ],
-          description: `الراحة اللي تحلم بها: تخيل نفسك تغوص في مصفحة خشبية تصيّدها لتنسكب تعب اليوم كلّه. كثافة (38 سوفت)، يعاني راحة فخمية ما تهبط ولا تتغير مع الزمن. القماش: سواد كان قطيفة فاخرة أو كتان عالي الجودة، ناعم الملمس، يضيف لمسة دفء وأناقة.`,
-          price: "50,000",
-          oldPrice: "75,000",
-          discount: "-33%",
-          colors: [
-            { name: "أخضر", hex: "#2e7d32" },
-            { name: "أزرق", hex: "#1976d2" },
-            { name: "بيج", hex: "#d7ccc8" },
-            { name: "رمادي", hex: "#607d8b" },
-          ],
-          sizes: ["S", "M", "L", "XL"],
-        },
-        relatedProducts: [
-          {
-            id: 1,
-            title: '* 36" 180 كونتر خشب قهوة ترابيزة',
-            image: "/images/products/product1.jpg",
-            price: "1,299",
-            oldPrice: "2,599",
-            discount: "-57%",
-          },
-          {
-            id: 2,
-            title: '* 40" 200 كونتر خشب قهوة ترابيزة',
-            image: "/images/products/product2.jpg",
-            price: "1,499",
-            oldPrice: "2,999",
-            discount: "-50%",
-          },
-          {
-            id: 3,
-            title: '* 32" 160 كونتر خشب قهوة ترابيزة',
-            image: "/images/products/product3.jpg",
-            price: "1,099",
-            oldPrice: "2,199",
-            discount: "-50%",
-          },
-          {
-            id: 4,
-            title: '* 38" 190 كونتر خشب قهوة ترابيزة',
-            image: "/images/products/product4.jpg",
-            price: "1,399",
-            oldPrice: "2,799",
-            discount: "-50%",
-          },
-          {
-            id: 5,
-            title: '* 34" 170 كونتر خشب قهوة ترابيزة',
-            image: "/images/products/product5.jpg",
-            price: "1,199",
-            oldPrice: "2,399",
-            discount: "-50%",
-          },
-        ],
-      });
-    }, 1200);
-  });
+const toggleFavorite = () => {
+  isFavorite.value = !isFavorite.value;
 };
-
-// ✅ عند التحميل
-onMounted(async () => {
-  const data = await fetchProductData();
-  product.value = data.product;
-  relatedProducts.value = data.relatedProducts;
-  loading.value = false;
-});
-
-// ✅ أحداث السلة
-const handleAddToCart = (qty) => {
-  console.log(`تم إضافة ${qty} من "${product.value.title}" إلى السلة`);
-};
-
-const handleRemoveFromCart = () => {
-  console.log(`تم إزالة "${product.value.title}" من السلة`);
-};
+const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString("ar-EG");
 </script>
 
 <style scoped lang="scss">
-/* ========== الصفحة الرئيسية ========== */
+.spec-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .spec-brand-logo {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #f9f9f9;
+  }
+}
+
 .product-page {
   background-color: var(--color-green-white);
   padding: 50px 20px;
 }
 
-/* ========== التنسيق الجانبي ========== */
 .product-layout {
   display: flex;
   gap: 40px;
   margin: 0 auto 50px;
   max-width: 1400px;
-
   @media (max-width: 992px) {
     flex-direction: column;
     gap: 30px;
@@ -509,26 +653,21 @@ const handleRemoveFromCart = () => {
   }
 }
 
-/* ========== السلايدر المزدوج ========== */
 .product-slider-section {
   width: 500px;
   max-width: 100%;
-
   .main-swiper {
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    position: relative;
     background: #f9fafb;
     aspect-ratio: 1 / 1;
     height: auto;
-
     .swiper-slide-content {
       height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-
       .main-image {
         width: 100%;
         height: 100%;
@@ -536,63 +675,29 @@ const handleRemoveFromCart = () => {
         display: block;
       }
     }
-
-    .swiper-button-prev,
-    .swiper-button-next {
-      width: 50px;
-      height: 50px;
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 50%;
-      color: var(--color-green-darker);
-      font-size: 22px;
-      z-index: 10;
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-      margin-top: 0 !important;
-
-      &:hover {
-        background: var(--color-green-primary);
-        color: white;
-        transform: scale(1.05);
-      }
-    }
-
-    .swiper-button-prev {
-      left: 24px;
-    }
-
-    .swiper-button-next {
-      right: 24px;
-    }
   }
-
   .thumbs-swiper {
     margin-top: 20px;
-
     .swiper-slide {
       opacity: 0.7;
       cursor: pointer;
       transition: all 0.3s ease;
       border-radius: 8px;
       overflow: hidden;
-
       &.swiper-slide-thumb-active {
         opacity: 1;
         transform: scale(1.05);
         box-shadow: 0 0 0 2px var(--color-green-primary);
       }
-
       .thumb-slide {
         aspect-ratio: 1 / 1;
         width: 100%;
-        height: auto;
         border-radius: 8px;
         overflow: hidden;
         background: #f0f4f2;
         display: flex;
         align-items: center;
         justify-content: center;
-
         .thumb-image {
           width: 100%;
           height: 100%;
@@ -604,7 +709,6 @@ const handleRemoveFromCart = () => {
   }
 }
 
-/* ========== محتوى المنتج ========== */
 .product-info-section {
   width: calc(100% - 520px);
   max-width: 100%;
@@ -616,7 +720,6 @@ const handleRemoveFromCart = () => {
     margin-bottom: 12px;
     flex-wrap: wrap;
     gap: 10px;
-
     .product-title {
       font-size: 28px;
       font-weight: 800;
@@ -625,7 +728,6 @@ const handleRemoveFromCart = () => {
       margin: 0;
       flex: 1;
     }
-
     .favorite-btn {
       width: 44px;
       height: 44px;
@@ -638,16 +740,13 @@ const handleRemoveFromCart = () => {
       justify-content: center;
       transition: all 0.3s ease;
       flex-shrink: 0;
-
       &:hover {
         background: var(--color-green-light);
         transform: scale(1.05);
       }
-
       &.is-favorite .filled {
         color: #e53935;
       }
-
       .favorite-icon {
         font-size: 24px;
         color: #888;
@@ -674,10 +773,8 @@ const handleRemoveFromCart = () => {
     font-weight: 400;
   }
 
-  /* ========== خيارات الألوان والمقاسات ========== */
   .options-section {
     margin-bottom: 24px;
-
     .options-title {
       font-size: 18px;
       font-weight: 700;
@@ -690,7 +787,6 @@ const handleRemoveFromCart = () => {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
-
       .color-option {
         width: 40px;
         height: 40px;
@@ -701,16 +797,17 @@ const handleRemoveFromCart = () => {
         transition:
           transform 0.2s,
           border-color 0.2s;
-
-        &:hover {
+        &:hover:not(:disabled) {
           transform: scale(1.1);
         }
-
         &.active {
           border-color: var(--color-green-primary);
           transform: scale(1.15);
         }
-
+        &.color-disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
         .color-check {
           position: absolute;
           bottom: -6px;
@@ -733,8 +830,8 @@ const handleRemoveFromCart = () => {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-
       .size-option {
+        position: relative;
         padding: 8px 16px;
         border: 2px solid #ddd;
         border-radius: 8px;
@@ -744,66 +841,93 @@ const handleRemoveFromCart = () => {
         color: var(--text-main);
         cursor: pointer;
         transition: all 0.2s ease;
-        position: relative;
-
+        display: flex;
+        align-items: center;
+        gap: 6px;
         &:hover:not(:disabled) {
           border-color: var(--color-green-primary);
           background: var(--color-green-light);
         }
-
         &.active {
           border-color: var(--color-green-primary);
           background: var(--color-green-primary);
           color: white;
         }
-
-        &:disabled {
-          opacity: 0.5;
+        &.unavailable {
+          opacity: 0.4;
           cursor: not-allowed;
+          text-decoration: line-through;
         }
+      }
+    }
 
-        .out-of-stock {
-          position: absolute;
-          top: -8px;
-          right: -8px;
-          background: var(--color-yellow-secondary);
-          color: var(--color-green-darker);
-          font-size: 10px;
-          font-weight: bold;
-          padding: 2px 4px;
-          border-radius: 4px;
+    .materials-list {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      .material-option {
+        position: relative;
+        padding: 8px 18px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        background: white;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        &:hover:not(:disabled) {
+          border-color: var(--color-green-primary);
+          background: var(--color-green-light);
+        }
+        &.active {
+          border-color: var(--color-green-primary);
+          background: var(--color-green-primary);
+          color: white;
+        }
+        &.unavailable {
+          opacity: 0.4;
+          cursor: not-allowed;
+          text-decoration: line-through;
         }
       }
     }
   }
 
-  /* ========== السعر ========== */
+  .out-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: #e53935;
+    color: white;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
   .price-section {
     margin-bottom: 30px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 16px;
-
     .price-row {
       display: flex;
       align-items: baseline;
       gap: 16px;
-
       .old-price {
         font-size: 18px;
         color: #aaa;
         text-decoration: line-through;
         font-weight: 500;
       }
-
       .new-price {
         font-size: 36px;
         font-weight: 800;
         color: var(--color-green-primary);
       }
     }
-
     .discount-badge {
       display: inline-block;
       background: var(--color-yellow-secondary);
@@ -826,18 +950,15 @@ const handleRemoveFromCart = () => {
     align-items: center;
     gap: 16px;
     margin-top: 20px;
-
     span {
       font-size: 16px;
       font-weight: 600;
       color: var(--text-main);
     }
-
     .social-icons {
       display: flex;
       gap: 14px;
     }
-
     .social-icon {
       font-size: 26px;
       color: #666;
@@ -845,7 +966,6 @@ const handleRemoveFromCart = () => {
       transition:
         color 0.3s,
         transform 0.2s;
-
       &:hover {
         color: var(--color-green-primary);
         transform: translateY(-2px);
@@ -854,18 +974,15 @@ const handleRemoveFromCart = () => {
   }
 }
 
-/* ========== Tabs ========== */
 .tabs-section {
   margin-top: 40px;
   border-top: 1px solid #eee;
   padding-top: 30px;
-
   .tabs-nav {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 20px;
-
     .tab-button {
       padding: 12px 24px;
       background: #f0f4f2;
@@ -877,11 +994,9 @@ const handleRemoveFromCart = () => {
       cursor: pointer;
       transition: all 0.3s ease;
       white-space: nowrap;
-
       &:hover {
         background: var(--color-green-light);
       }
-
       &.active {
         background: var(--color-green-primary);
         color: white;
@@ -896,43 +1011,33 @@ const handleRemoveFromCart = () => {
       background: white;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-
       h3 {
         font-size: 20px;
         font-weight: 700;
         color: var(--color-green-darker);
         margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        .reviews-count {
+          font-size: 16px;
+          color: var(--color-green-primary);
+          font-weight: 600;
+        }
       }
-
       p {
         margin-bottom: 16px;
         line-height: 1.6;
-      }
-
-      ul.features-list {
-        list-style: none;
-        padding: 0;
-        margin: 16px 0;
-
-        li {
-          padding: 6px 0;
-          border-bottom: 1px dashed #eee;
-          &:last-child {
-            border-bottom: none;
-          }
-        }
       }
 
       table.specs-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 15px;
-
         td {
           padding: 12px 16px;
           border-bottom: 1px solid #eee;
         }
-
         td:first-child {
           font-weight: 600;
           color: var(--text-main);
@@ -940,62 +1045,136 @@ const handleRemoveFromCart = () => {
         }
       }
 
+      .no-reviews {
+        text-align: center;
+        color: #aaa;
+        padding: 30px 0;
+        font-size: 16px;
+      }
+
+      .skeleton-review {
+        height: 80px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e0e0e0 50%,
+          #f0f0f0 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+      @keyframes shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
       .review-item {
         margin-bottom: 24px;
         padding-bottom: 20px;
         border-bottom: 1px solid #eee;
-
         &:last-child {
           margin-bottom: 0;
           padding-bottom: 0;
           border-bottom: none;
         }
-
         .review-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 12px;
-
-          .review-author {
-            font-weight: 700;
-            color: var(--color-green-darker);
+          .review-author-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            .author-avatar {
+              width: 36px;
+              height: 36px;
+              border-radius: 50%;
+              background: var(--color-green-primary);
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 16px;
+              font-weight: 700;
+              flex-shrink: 0;
+            }
+            .review-author {
+              font-weight: 700;
+              color: var(--color-green-darker);
+            }
           }
-
           .review-rating {
             display: flex;
             gap: 4px;
-
             .filled {
               color: #ffc107;
             }
           }
         }
-
         .review-text {
           color: var(--text-main);
           line-height: 1.6;
           margin-bottom: 12px;
+          padding-right: 46px;
         }
-
         .review-meta {
           font-size: 13px;
-          color: #777;
+          color: #aaa;
           display: flex;
           gap: 8px;
+          padding-right: 46px;
         }
       }
 
       .add-review-section {
         margin-top: 30px;
-
+        border-top: 1px solid #eee;
+        padding-top: 24px;
         h4 {
           font-size: 18px;
           font-weight: 700;
           margin-bottom: 16px;
           color: var(--color-green-darker);
         }
-
+        .review-error {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: #fff3f3;
+          border: 1px solid #ffcdd2;
+          border-radius: 8px;
+          color: #c62828;
+          font-size: 14px;
+          margin-bottom: 16px;
+          .error-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+          }
+        }
+        .review-success {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: #f1f8e9;
+          border: 1px solid #c5e1a5;
+          border-radius: 8px;
+          color: #2e7d32;
+          font-size: 14px;
+          margin-bottom: 16px;
+          .success-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+          }
+        }
         textarea.review-input {
           width: 100%;
           padding: 14px;
@@ -1004,37 +1183,55 @@ const handleRemoveFromCart = () => {
           font-size: 16px;
           resize: vertical;
           margin-bottom: 16px;
+          font-family: inherit;
+          transition: border-color 0.2s;
+          &:focus {
+            outline: none;
+            border-color: var(--color-green-primary);
+          }
+          &:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+          }
         }
-
         .review-footer {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: center;
           gap: 20px;
-
+          flex-wrap: wrap;
           .rating-selector {
             display: flex;
             align-items: center;
             gap: 10px;
-
             .stars {
               display: flex;
               gap: 4px;
             }
-
             .star-icon {
-              font-size: 20px;
+              font-size: 28px;
               color: #ddd;
               cursor: pointer;
-              transition: color 0.2s;
-
+              transition:
+                color 0.2s,
+                transform 0.1s;
               &.filled {
                 color: #ffc107;
               }
+              &:hover:not(.disabled) {
+                color: #ffc107;
+                transform: scale(1.2);
+              }
+              &.disabled {
+                cursor: not-allowed;
+                opacity: 0.5;
+              }
             }
           }
-
           .btn-submit-review {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             padding: 12px 28px;
             background: var(--color-green-primary);
             color: white;
@@ -1043,15 +1240,24 @@ const handleRemoveFromCart = () => {
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
-
-            &:hover {
-              background: var(--color-green-primary);
+            transition: opacity 0.3s;
+            &:hover:not(:disabled) {
+              opacity: 0.9;
             }
-
             &:disabled {
-              opacity: 0.6;
+              opacity: 0.5;
               cursor: not-allowed;
+            }
+            .spin {
+              animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+              from {
+                transform: rotate(0deg);
+              }
+              to {
+                transform: rotate(360deg);
+              }
             }
           }
         }
@@ -1059,38 +1265,49 @@ const handleRemoveFromCart = () => {
     }
   }
 }
-/* ========== الاستجابة ========== */
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: #aaa;
+  .error-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    color: #f44336;
+  }
+  p {
+    font-size: 18px;
+  }
+}
+
 @media (max-width: 992px) {
   .product-info-section {
     width: 100%;
   }
 }
-
 @media (max-width: 768px) {
   .product-page {
     padding: 30px 16px;
   }
-
-  .product-layout {
-    padding: 0 8px;
-  }
-
   .product-info-section {
     .product-title {
-      font-size: 26px;
+      font-size: 22px;
     }
-
-    .new-price {
+    .price-section .price-row .new-price {
       font-size: 28px;
     }
   }
-
   .tabs-section {
-    .tabs-nav {
-      .tab-button {
-        padding: 10px 16px;
-        font-size: 15px;
-      }
+    .tabs-nav .tab-button {
+      padding: 10px 16px;
+      font-size: 14px;
+    }
+    .tabs-content .tab-pane .review-footer {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 }

@@ -8,13 +8,25 @@
       </div>
 
       <form @submit.prevent="onSubmit" class="register-form">
+        <!-- ✅ الاسم الأول -->
         <BaseInput
-          v-model="fullName"
-          label="الاسم الكامل *"
-          id="fullName"
-          placeholder="أدخل اسمك الكامل"
+          v-model="firstName"
+          label="الاسم الأول *"
+          id="firstName"
+          placeholder="أدخل اسمك الأول"
           icon="ph:user"
-          :error="errors.fullName"
+          :error="errors.firstName"
+          :disabled="isSubmitting"
+        />
+
+        <!-- ✅ الاسم الأخير -->
+        <BaseInput
+          v-model="lastName"
+          label="الاسم الأخير *"
+          id="lastName"
+          placeholder="أدخل اسمك الأخير"
+          icon="ph:user"
+          :error="errors.lastName"
           :disabled="isSubmitting"
         />
 
@@ -112,12 +124,16 @@ const serverError = ref("");
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-// 1. شروط التحقق
+// ✅ تعديل شروط التحقق لتناسب الحقول المنفصلة
 const schema = yup.object({
-  fullName: yup
+  firstName: yup
     .string()
-    .required("الاسم الكامل مطلوب")
-    .min(3, "الاسم قصير جداً"),
+    .required("الاسم الأول مطلوب")
+    .min(2, "الاسم قصير جداً"),
+  lastName: yup
+    .string()
+    .required("الاسم الأخير مطلوب")
+    .min(2, "الاسم قصير جداً"),
   email: yup.string().required("البريد مطلوب").email("بريد غير صحيح"),
   phone: yup
     .string()
@@ -139,7 +155,9 @@ const { handleSubmit, errors, isSubmitting } = useForm({
   initialValues: { termsAccepted: false },
 });
 
-const { value: fullName } = useField("fullName");
+// ✅ ربط الحقول الجديدة
+const { value: firstName } = useField("firstName");
+const { value: lastName } = useField("lastName");
 const { value: email } = useField("email");
 const { value: phone } = useField("phone");
 const { value: password } = useField("password");
@@ -149,14 +167,9 @@ const { value: termsAccepted } = useField("termsAccepted");
 const onSubmit = handleSubmit(async (values) => {
   serverError.value = "";
 
-  // تقسيم الاسم (لأن السيرفر يطلب firstName و lastName)
-  const nameParts = values.fullName.trim().split(" ");
-  const firstName = nameParts[0];
-  const lastName = nameParts.slice(1).join(" ") || firstName;
-
   const result = await authStore.register({
-    firstName,
-    lastName,
+    firstName: values.firstName.trim(),
+    lastName: values.lastName.trim(),
     email: values.email,
     phone: values.phone,
     password: values.password,
@@ -171,6 +184,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <style scoped lang="scss">
+/* ... نفس الأنماط السابقة بدون تغيير ... */
 .register-page {
   width: 700px;
   max-width: 100%;

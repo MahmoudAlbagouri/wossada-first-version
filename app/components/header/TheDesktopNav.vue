@@ -2,154 +2,91 @@
   <nav class="bottom-nav">
     <div class="container">
       <div class="menu-links">
-        <div class="desktop-menu">
-          <NuxtLink to="/" class="nav-link">كل المنتجات</NuxtLink>
+        <div
+          v-if="categoryStore.loading && categoryStore.categories.length === 0"
+          class="desktop-menu"
+        >
+          <div
+            v-for="i in 6"
+            :key="i"
+            class="skeleton-item"
+            style="margin: 0 10px"
+          ></div>
+        </div>
 
-          <!-- قائمة الأثاث -->
-          <div class="dropdown-menu">
-            <div class="menu-trigger">
-              <span>الأثاث</span>
+        <div v-else class="desktop-menu">
+          <NuxtLink to="/" class="nav-link">{{
+            $t("all_products") || "كل المنتجات"
+          }}</NuxtLink>
+
+          <div
+            v-for="category in topLevelCategories"
+            :key="category.id"
+            class="dropdown-menu"
+            @mouseenter="activeCategory = category.id"
+            @mouseleave="activeCategory = null"
+          >
+            <div
+              class="menu-trigger"
+              :class="{ 'is-active': activeCategory === category.id }"
+            >
+              <span>{{
+                categoryStore.getCategoryName(category, currentLang)
+              }}</span>
               <Icon name="ph:caret-down" class="chevron" />
             </div>
-            <div class="dropdown-content">
-              <div class="submenu-grid">
-                <div class="submenu-column">
-                  <h4>أثاث المعيشة</h4>
-                  <NuxtLink to="/category/sofas" class="submenu-link"
-                    >كنب</NuxtLink
-                  >
-                  <NuxtLink to="/category/chairs" class="submenu-link"
-                    >كراسي</NuxtLink
-                  >
-                  <NuxtLink to="/category/tables" class="submenu-link"
-                    >طاولات</NuxtLink
-                  >
-                  <NuxtLink to="/category/tv-units" class="submenu-link"
-                    >وحدات تلفزيون</NuxtLink
-                  >
-                </div>
-                <div class="submenu-column">
-                  <h4>أثاث النوم</h4>
-                  <NuxtLink to="/category/beds" class="submenu-link"
-                    >أسرة</NuxtLink
-                  >
-                  <NuxtLink to="/category/wardrobes" class="submenu-link"
-                    >خزائن ملابس</NuxtLink
-                  >
-                  <NuxtLink to="/category/nightstands" class="submenu-link"
-                    >طاولات سرير</NuxtLink
-                  >
-                </div>
-                <div class="submenu-column">
-                  <h4>أثاث المطابخ</h4>
-                  <NuxtLink to="/category/kitchen-cabinets" class="submenu-link"
-                    >خزائن مطابخ</NuxtLink
-                  >
-                  <NuxtLink to="/category/dining-sets" class="submenu-link"
-                    >مجموعات طعام</NuxtLink
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- قائمة المفروشات -->
-          <div class="dropdown-menu">
-            <div class="menu-trigger">
-              <span>مفروشات</span>
-              <Icon name="ph:caret-down" class="chevron" />
-            </div>
-            <div class="dropdown-content">
-              <div class="submenu-grid">
-                <div class="submenu-column">
-                  <h4>السجاد</h4>
-                  <NuxtLink to="/category/rugs" class="submenu-link"
-                    >سجاد</NuxtLink
-                  >
-                  <NuxtLink to="/category/carpets" class="submenu-link"
-                    >بسط</NuxtLink
-                  >
-                </div>
-                <div class="submenu-column">
-                  <h4>الستائر</h4>
-                  <NuxtLink to="/category/curtains" class="submenu-link"
-                    >ستائر</NuxtLink
-                  >
-                  <NuxtLink to="/category/blinds" class="submenu-link"
-                    >ستائر خشبية</NuxtLink
-                  >
-                </div>
-                <div class="submenu-column">
-                  <h4>الوسائد</h4>
-                  <NuxtLink to="/category/cushions" class="submenu-link"
-                    >وسائد ديكور</NuxtLink
-                  >
-                  <NuxtLink to="/category/pillows" class="submenu-link"
-                    >وسائد سرير</NuxtLink
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
+            <transition name="fade-slide">
+              <div
+                v-if="activeCategory === category.id"
+                class="dropdown-content"
+              >
+                <div class="submenu-container">
+                  <div class="submenu-header">
+                    <h3>
+                      {{ categoryStore.getCategoryName(category, currentLang) }}
+                    </h3>
+                    <button @click="activeCategory = null" class="close-btn">
+                      <Icon name="ph:x" />
+                    </button>
+                  </div>
 
-          <!-- قائمة الديكور -->
-          <div class="dropdown-menu">
-            <div class="menu-trigger">
-              <span>ديكور</span>
-              <Icon name="ph:caret-down" class="chevron" />
-            </div>
-            <div class="dropdown-content">
-              <div class="submenu-grid">
-                <div class="submenu-column">
-                  <h4>إطارات وصور</h4>
-                  <NuxtLink to="/category/frames" class="submenu-link"
-                    >إطارات</NuxtLink
-                  >
-                  <NuxtLink to="/category/wall-art" class="submenu-link"
-                    >فن جداري</NuxtLink
-                  >
-                </div>
-                <div class="submenu-column">
-                  <h4>إكسسوارات</h4>
-                  <NuxtLink to="/category/vases" class="submenu-link"
-                    >مزهريات</NuxtLink
-                  >
-                  <NuxtLink to="/category/decorative-items" class="submenu-link"
-                    >قطع ديكور</NuxtLink
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
+                  <div class="submenu-grid">
+                    <template
+                      v-if="category.children && category.children.length > 0"
+                    >
+                      <NuxtLink
+                        v-for="child in category.children"
+                        :key="child.id"
+                        :to="`/category/${child.slug}`"
+                        class="category-item"
+                        @click="activeCategory = null"
+                      >
+                        <div class="category-icon">
+                          <Icon name="ph:folder" />
+                        </div>
+                        <span>{{
+                          categoryStore.getCategoryName(child, currentLang)
+                        }}</span>
+                      </NuxtLink>
+                    </template>
 
-          <!-- قائمة الإضاءة -->
-          <div class="dropdown-menu">
-            <div class="menu-trigger">
-              <span>إضاءة</span>
-              <Icon name="ph:caret-down" class="chevron" />
-            </div>
-            <div class="dropdown-content">
-              <div class="submenu-grid">
-                <div class="submenu-column">
-                  <h4>إضاءة السقف</h4>
-                  <NuxtLink to="/category/ceiling-lights" class="submenu-link"
-                    >ثريات</NuxtLink
-                  >
-                  <NuxtLink to="/category/pendant-lights" class="submenu-link"
-                    >إضاءة معلقة</NuxtLink
-                  >
-                </div>
-                <div class="submenu-column">
-                  <h4>إضاءة الطاولات</h4>
-                  <NuxtLink to="/category/table-lamps" class="submenu-link"
-                    >مصابيح طاولات</NuxtLink
-                  >
-                  <NuxtLink to="/category/floor-lamps" class="submenu-link"
-                    >مصابيح أرضية</NuxtLink
-                  >
+                    <div v-else class="submenu-column">
+                      <NuxtLink
+                        :to="`/category/${category.slug}`"
+                        class="category-item primary"
+                        @click="activeCategory = null"
+                      >
+                        <div class="category-icon">
+                          <Icon name="ph:eye" />
+                        </div>
+                        <span>{{ $t("view_all") || "عرض الكل" }}</span>
+                      </NuxtLink>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </transition>
           </div>
         </div>
       </div>
@@ -157,21 +94,67 @@
   </nav>
 </template>
 
+<script setup>
+import { useCategoryStore } from "@/stores/category";
+import { ref, computed, watch } from "vue";
+
+const categoryStore = useCategoryStore();
+const { currentLang } = useLanguage();
+const activeCategory = ref(null);
+
+// الجلب الأولي
+await useAsyncData("categories-init", () => categoryStore.fetchCategories(), {
+  lazy: true,
+});
+
+// ✅ راقب تغيير اللغة وأعد الجلب يدوياً
+watch(currentLang, async (newLang) => {
+  console.log("🔄 اللغة اتغيرت:", newLang);
+  await categoryStore.fetchCategories(newLang);
+  console.log("✅ الكاتجوري اتحدثت:", categoryStore.categories);
+});
+
+// ✅ computed مباشرة من الستور بدل storeToRefs
+const topLevelCategories = computed(() => {
+  return categoryStore.categories.filter((cat) => !cat.parentId);
+});
+</script>
+
 <style scoped lang="scss">
-/* نفس الأنماط السابقة بدون تغيير */
 .bottom-nav {
   background-color: var(--color-green-white);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  min-height: 60px;
+  display: flex;
+  align-items: center;
 }
 .menu-links {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 50px;
+  gap: 40px;
+  width: 100%;
 }
 .desktop-menu {
   display: flex;
   align-items: center;
-  gap: 20px;
+  position: relative;
+}
+.skeleton-item {
+  width: 100px;
+  height: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 4px;
+}
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 @media (max-width: 870px) {
   .desktop-menu {
@@ -181,80 +164,120 @@
 .menu-trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  padding: 8px 15px;
+  padding: 12px 18px;
   border-radius: 8px;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
   font-size: 14px;
   font-weight: 600;
-}
-.menu-trigger:hover {
-  background-color: var(--color-green-light-active);
+  position: relative;
+  &.is-active {
+    background-color: var(--color-green-light-active);
+    color: var(--color-green-primary);
+    .chevron {
+      transform: rotate(180deg);
+    }
+  }
+  &:hover {
+    background-color: var(--color-green-light-active);
+    color: var(--color-green-primary);
+  }
 }
 .dropdown-content {
   position: absolute;
   top: 100%;
   left: 50%;
-  background-color: var(--bg-body);
-  border-radius: 8px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  min-width: 800px;
-  padding: 20px;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(0);
-  transition: all 0.3s ease;
-  z-index: 1001;
-}
-.dropdown-menu:hover .dropdown-content {
-  opacity: 1;
-  visibility: visible;
   transform: translateX(-50%);
+  background-color: var(--bg-body, #fff);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  width: auto;
+  min-width: 600px;
+  max-width: 1200px;
+  z-index: 1001;
+  margin-top: 10px;
+}
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+}
+.submenu-container {
+  padding: 25px;
+}
+.submenu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-green-primary);
+}
+.submenu-header h3 {
+  color: var(--color-green-primary);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+.close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 18px;
+  display: flex;
 }
 .submenu-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 30px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
 }
-.submenu-column h4 {
-  color: var(--color-green-primary);
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--color-green-primary);
-}
-.submenu-link {
-  display: block;
-  color: var(--text-main);
-  text-decoration: none;
-  padding: 8px 0;
-  transition: color 0.3s;
-  font-size: 14px;
-}
-.submenu-link:hover {
-  color: var(--color-green-primary);
-  transform: translateX(5px);
-}
-.nav-link,
-.menu-item {
-  text-decoration: none;
-  color: var(--text-main);
-  font-weight: 600;
-  font-size: 16px;
+.category-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: color 0.3s;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  &:hover {
+    background-color: var(--color-green-light-active);
+    color: var(--color-green-primary);
+    border-color: var(--color-green-primary);
+  }
 }
-.nav-link:hover,
-.menu-item:hover {
+.category-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: #f0fdf4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-green-primary);
 }
+.nav-link {
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  transition: 0.3s;
+  &:hover {
+    background-color: var(--color-green-light-active);
+    color: var(--color-green-primary);
+  }
+}
 .chevron {
-  font-size: 14px;
-  color: var(--text-muted);
+  font-size: 12px;
+  transition: transform 0.3s ease;
 }
 </style>
