@@ -205,7 +205,9 @@
           <!-- وصف -->
           <div v-if="activeTab === 'description'" class="tab-pane">
             <h3>الوصف التفصيلي</h3>
-            <p>{{ currentTranslation?.longDescription }}</p>
+            <p class="preserve-format">
+              {{ currentTranslation?.longDescription }}
+            </p>
           </div>
 
           <!-- مواصفات -->
@@ -707,6 +709,19 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString("ar-EG");
       }
     }
   }
+}
+.preserve-format {
+  white-space: pre-wrap; /* يحافظ على الأسطر الجديدة ويلف النص تلقائياً */
+  word-wrap: break-word; /* يكسر الكلمات الطويلة جداً لتناسب العرض */
+  line-height: 1.8; /* تباعد أسطر مريح للقراءة */
+  font-size: 14px;
+  color: #444;
+  background: #fdfaf4; /* خلفية فاتحة لتمييز منطقة الوصف */
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #f0e8d0;
+  margin-top: 5px;
+  width: 100%;
 }
 
 .product-info-section {

@@ -485,8 +485,10 @@
                     <label class="form-label">وصف تفصيلي</label>
                     <textarea
                       v-model="form.translations[0].longDescription"
-                      class="form-input"
-                      rows="3"
+                      class="form-input long-desc-input"
+                      rows="5"
+                      dir="auto"
+                      placeholder="اكتب الوصف هنا... اضغط Enter للنزول سطر جديد"
                     ></textarea>
                   </div>
                   <!-- ✅ Specifications عربي -->
@@ -555,9 +557,10 @@
                     <label class="form-label">Long Description</label>
                     <textarea
                       v-model="form.translations[1].longDescription"
-                      class="form-input"
-                      rows="3"
-                      dir="ltr"
+                      class="form-input long-desc-input"
+                      rows="5"
+                      dir="auto"
+                      placeholder="Write description here..."
                     ></textarea>
                   </div>
                   <!-- ✅ Specifications English -->
