@@ -1,11 +1,15 @@
 <template>
   <div class="checkout-page">
     <div class="container">
-      <!-- Page Title -->
       <h1 class="page-title">إتمام الطلب</h1>
 
-      <div class="checkout-layout">
-        <!-- ===== RIGHT SIDE: Delivery + Notes + Payment ===== -->
+      <div v-if="isLoadingData" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>جاري تجهيز بيانات الدفع...</p>
+      </div>
+
+      <div v-else class="checkout-layout">
+        <!-- RIGHT SIDE: Delivery + Notes + Payment -->
         <div class="checkout-left">
           <!-- Delivery Address Section -->
           <div class="section-card">
@@ -13,73 +17,42 @@
             <div class="divider"></div>
 
             <div class="address-list">
-              <!-- Address Card 1 -->
-              <div class="address-card selected">
+              <div
+                v-for="address in addressStore.addresses"
+                :key="address.id"
+                class="address-card"
+                :class="{ selected: selectedAddressId === address.id }"
+                @click="selectedAddressId = address.id"
+              >
                 <div class="address-info">
                   <div class="address-top">
-                    <span class="address-label">شارع وقفة عرفه</span>
+                    <span class="address-label">{{ address.addressName }}</span>
+                    <span v-if="address.isDefault" class="default-badge"
+                      >الافتراضي</span
+                    >
                   </div>
-                  <p class="address-city">عزبة خيزه . الجيزه</p>
+                  <p class="address-city">
+                    {{ address.city?.governorate?.nameAr }} -
+                    {{ address.city?.nameAr }}
+                  </p>
+                  <p class="address-details-text">
+                    {{ address.streetAddress }}
+                  </p>
                   <p class="address-phone">
                     <span class="phone-icon">📱</span>
-                    01110022133
+                    {{ address.phoneNumber }}
                   </p>
                 </div>
-                <button class="edit-btn">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                    />
-                    <path
-                      d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                </button>
+                <div
+                  class="radio-circle"
+                  :class="{ active: selectedAddressId === address.id }"
+                ></div>
               </div>
 
-              <!-- Address Card 2 -->
-              <div class="address-card">
-                <div class="address-info">
-                  <div class="address-top">
-                    <span class="address-label">شارع وقفة عرفه</span>
-                  </div>
-                  <p class="address-city">عزبة خيزه . الجيزه</p>
-                  <p class="address-phone">
-                    <span class="phone-icon">📱</span>
-                    01110022133
-                  </p>
-                </div>
-                <button class="edit-btn">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                    />
-                    <path
-                      d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Add New Address -->
-              <button class="add-address-btn">
+              <NuxtLink to="/account/addresses" class="add-address-btn">
                 <span class="plus-icon">+</span>
-                اضافة عنوان جديد
-              </button>
+                إضافة عنوان جديد
+              </NuxtLink>
             </div>
           </div>
 
@@ -88,9 +61,10 @@
             <h2 class="section-heading">ملاحظات</h2>
             <div class="divider"></div>
             <textarea
+              v-model="notes"
               class="notes-textarea"
-              placeholder="اكتب ملاحظاتك ....."
-              rows="5"
+              placeholder="اكتب ملاحظاتك للسائق أو المتجر (اختياري)..."
+              rows="3"
             ></textarea>
           </div>
 
@@ -98,181 +72,137 @@
           <div class="section-card">
             <h2 class="section-heading">طريقة الدفع</h2>
             <div class="divider"></div>
-
             <div class="payment-options">
-              <!-- Option 1 -->
               <label
                 class="payment-option"
-                :class="{ active: selectedPayment === 'online1' }"
+                :class="{ active: paymentMethod === 'cod' }"
               >
                 <input
                   type="radio"
                   name="payment"
-                  value="online1"
-                  v-model="selectedPayment"
+                  value="cod"
+                  v-model="paymentMethod"
                 />
-                <span class="payment-label">الدفع اونلاين</span>
-                <span class="check-icon">
-                  <svg
-                    v-if="selectedPayment === 'online1'"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
+                <span class="payment-label">نقداً عند الاستلام</span>
+                <span class="check-icon" v-if="paymentMethod === 'cod'">✓</span>
               </label>
 
-              <!-- Option 2 -->
               <label
                 class="payment-option"
-                :class="{ active: selectedPayment === 'online2' }"
+                :class="{ active: paymentMethod === 'online' }"
               >
                 <input
                   type="radio"
                   name="payment"
-                  value="online2"
-                  v-model="selectedPayment"
+                  value="online"
+                  v-model="paymentMethod"
                 />
-                <span class="payment-label">الدفع اونلاين</span>
-                <span class="check-icon">
-                  <svg
-                    v-if="selectedPayment === 'online2'"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-              </label>
-
-              <!-- Option 3 -->
-              <label
-                class="payment-option"
-                :class="{ active: selectedPayment === 'card' }"
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="card"
-                  v-model="selectedPayment"
-                />
-                <span class="payment-label">بطاقة الثمان</span>
-                <span class="check-icon">
-                  <svg
-                    v-if="selectedPayment === 'card'"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-              </label>
-
-              <!-- Option 4 -->
-              <label
-                class="payment-option"
-                :class="{ active: selectedPayment === 'cash' }"
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="cash"
-                  v-model="selectedPayment"
-                />
-                <span class="payment-label">نقدا عند الأستلام</span>
-                <span class="check-icon">
-                  <svg
-                    v-if="selectedPayment === 'cash'"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
+                <span class="payment-label">دفع أونلاين (بطاقة)</span>
+                <span class="check-icon" v-if="paymentMethod === 'online'"
+                  >✓</span
+                >
               </label>
             </div>
           </div>
         </div>
 
-        <!-- ===== LEFT SIDE: Order Summary ===== -->
+        <!-- LEFT SIDE: Order Summary -->
         <div class="checkout-right">
           <div class="section-card summary-card">
             <h2 class="section-heading">ملخص الطلب</h2>
             <div class="divider"></div>
 
-            <!-- Order Items -->
+            <!-- Order Items from Cart -->
             <div class="order-items">
               <div
-                v-for="(item, index) in orderItems"
-                :key="index"
+                v-for="item in cartStore.items"
+                :key="item.id"
                 class="order-item"
               >
                 <div class="item-details">
-                  <p class="item-title">{{ item.title }}</p>
+                  <p class="item-title">
+                    {{ item.product?.metaTitle || item.product?.name }}
+                  </p>
                   <p class="item-qty-price">
-                    <span class="item-qty">{{ item.qty }} قطعة</span>
-                    <span class="item-multiply">*</span>
-                    <span class="item-price">{{ item.price }}</span>
-                    <span class="item-equals">=</span>
-                    <span class="item-total">{{ item.total }} ريال</span>
+                    <span class="item-qty">{{ item.quantity }} × </span>
+                    <span class="item-price">{{
+                      formatPrice(
+                        item.product?.baseDiscountPrice ||
+                          item.product?.basePrice,
+                      )
+                    }}</span>
                   </p>
                 </div>
                 <div class="item-image">
-                  <img :src="item.image" :alt="item.title" />
+                  <img
+                    :src="item.product?.mainImage"
+                    :alt="item.product?.metaTitle"
+                  />
                 </div>
               </div>
             </div>
 
             <!-- Coupon Row -->
             <div class="coupon-row">
-              <button class="coupon-apply-btn" @click="applyCoupon">
-                تطبيق
+              <button
+                class="coupon-apply-btn"
+                @click="validateCoupon"
+                :disabled="validatingCoupon"
+              >
+                {{ validatingCoupon ? "..." : "تطبيق" }}
               </button>
               <input
                 type="text"
                 class="coupon-input"
-                placeholder="ادخل كود الخصم"
+                placeholder="أدخل كود الخصم"
                 v-model="couponCode"
+                :disabled="!!appliedCoupon"
               />
+            </div>
+            <div v-if="appliedCoupon" class="coupon-success">
+              تم تطبيق الكوبون: <strong>{{ appliedCoupon.code }}</strong> (خصم
+              {{ appliedCoupon.discountAmount }} ج.م)
             </div>
 
             <!-- Totals -->
             <div class="totals-section">
               <div class="total-row">
-                <span class="total-amount">{{ subtotal }} ريال</span>
-                <span class="total-label">الاجمالي الفرعي</span>
+                <span class="total-amount">{{
+                  formatPrice(cartStore.total)
+                }}</span>
+                <span class="total-label">المجموع الفرعي</span>
               </div>
               <div class="divider-light"></div>
               <div class="total-row">
-                <span class="total-amount">{{ shippingCost }} ريال</span>
+                <span class="total-amount">{{ formatPrice(shippingFee) }}</span>
                 <span class="total-label">رسوم التوصيل</span>
+              </div>
+              <div v-if="discountAmount > 0" class="total-row discount">
+                <span class="total-amount"
+                  >- {{ formatPrice(discountAmount) }}</span
+                >
+                <span class="total-label">الخصم</span>
               </div>
               <div class="divider-light"></div>
               <div class="total-row final-total">
-                <span class="total-amount final">{{ grandTotal }} ريال</span>
-                <span class="total-label final">الاجمالي النهائي</span>
+                <span class="total-amount final">{{
+                  formatPrice(grandTotal)
+                }}</span>
+                <span class="total-label final">الإجمالي النهائي</span>
               </div>
             </div>
 
             <!-- Confirm Button -->
-            <button class="confirm-btn">تأكيد الطلب</button>
+            <button
+              class="confirm-btn"
+              @click="placeOrder"
+              :disabled="isSubmitting || !canPlaceOrder"
+            >
+              <span v-if="isSubmitting">جاري تأكيد الطلب...</span>
+              <span v-else>تأكيد الطلب ودفع {{ formatPrice(grandTotal) }}</span>
+            </button>
+
+            <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
           </div>
         </div>
       </div>
@@ -281,86 +211,191 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useCartStore } from "@/stores/cart";
+import { useAddressStore } from "@/stores/address";
+import { useOrdersStore } from "@/stores/orders";
 
-// Payment selection
-const selectedPayment = ref("cash");
+definePageMeta({ middleware: ["auth"] });
 
-// Coupon
+const cartStore = useCartStore();
+const addressStore = useAddressStore();
+const ordersStore = useOrdersStore();
+
+// State
+const selectedAddressId = ref("");
+const notes = ref("");
+const paymentMethod = ref("cod"); // cod or online
 const couponCode = ref("");
-const applyCoupon = () => {
-  // TODO: handle coupon logic
-  alert("تم تطبيق الكود: " + couponCode.value);
+const appliedCoupon = ref(null);
+const isSubmitting = ref(false);
+const isLoadingData = ref(true);
+const errorMessage = ref("");
+const validatingCoupon = ref(false);
+
+// Computed
+const shippingFee = computed(() => {
+  // منطق بسيط للشحن: إذا كان العنوان موجوداً، نحسب شحن المحافظة الافتراضي أو ثابت
+  // هنا نستخدم قيمة افتراضية للتوضيح، يجب ربطها بمنطق الشحن الحقيقي من الـ API
+  const address = addressStore.addresses.find(
+    (a) => a.id === selectedAddressId.value,
+  );
+  if (!address) return 0;
+  return address.city?.governorate?.baseShippingCost || 50;
+});
+
+const discountAmount = computed(() => appliedCoupon.value?.discountAmount || 0);
+
+const grandTotal = computed(() => {
+  let total = cartStore.total + shippingFee.value;
+  if (appliedCoupon.value) {
+    // إذا كان الكوبون نسبة مئوية، نحسب النسبة من المجموع الفرعي فقط عادةً
+    // لكن الـ API يعيد لنا discountAmount جاهزاً في خطوة التحقق
+    total -= discountAmount.value;
+  }
+  return Math.max(0, total);
+});
+
+const canPlaceOrder = computed(() => {
+  return selectedAddressId.value && cartStore.items.length > 0;
+});
+
+// Methods
+const formatPrice = (price) => {
+  if (!price) return "0 ج.م";
+  return new Intl.NumberFormat("ar-EG", {
+    style: "currency",
+    currency: "EGP",
+  }).format(price);
 };
 
-// Order items (dummy data)
-const orderItems = ref([
-  {
-    title: "ترابيزة قهوة خشب كونتر .......",
-    qty: 2,
-    price: "1200",
-    total: "2400",
-    image: "/images/products/product1.jpg",
-  },
-  {
-    title: "ترابيزة قهوة خشب كونتر .......",
-    qty: 2,
-    price: "1200",
-    total: "2400",
-    image: "/images/products/product2.jpg",
-  },
-  {
-    title: "ترابيزة قهوة خشب كونتر .......",
-    qty: 2,
-    price: "1200",
-    total: "2400",
-    image: "/images/products/product3.jpg",
-  },
-]);
+const validateCoupon = async () => {
+  if (!couponCode.value) return;
+  validatingCoupon.value = true;
+  errorMessage.value = "";
 
-const subtotal = ref(7200);
-const shippingCost = ref(50);
-const grandTotal = computed(() => subtotal.value + shippingCost.value);
+  try {
+    // استخدام endpoint التحقق من الكوبون
+    // ملاحظة: الـ API يتطلب amount للتحقق من الحد الأدنى
+    const { baseURL, headers } = addressStore._getRequestOptions
+      ? addressStore._getRequestOptions()
+      : { baseURL: useRuntimeConfig().public.apiBase, headers: {} }; // Fallback simple logic
+
+    // نحتاج لاستخدام $fetch مباشرة هنا لأن useApi قد لا يكون متاحاً بنفس الطريقة في كل المكونات
+    // أو نستخدم نفس نمط الـ Stores
+    const config = useRuntimeConfig();
+    const token = useCookie("auth_token").value;
+
+    const response = await $fetch(
+      `${config.public.apiBase}/coupons/validate?code=${couponCode.value}&amount=${cartStore.total}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (response.success && response.data) {
+      appliedCoupon.value = {
+        code: couponCode.value,
+        discountAmount: response.data.discountAmount,
+      };
+      // showToast("تم تطبيق الكوبون بنجاح", "success");
+    } else {
+      appliedCoupon.value = null;
+      errorMessage.value = "كود الخصم غير صالح أو لا ينطبق على هذا الطلب.";
+    }
+  } catch (err) {
+    appliedCoupon.value = null;
+    errorMessage.value = err?.data?.message || "حدث خطأ في التحقق من الكوبون.";
+  } finally {
+    validatingCoupon.value = false;
+  }
+};
+
+const placeOrder = async () => {
+  if (!canPlaceOrder.value) return;
+  isSubmitting.value = true;
+  errorMessage.value = "";
+
+  const payload = {
+    addressId: selectedAddressId.value,
+    items: cartStore.items.map((item) => ({
+      productId: item.productId || item.product?.id,
+      quantity: item.quantity,
+    })),
+    couponCode: appliedCoupon.value ? appliedCoupon.value.code : null,
+    // notes: notes.value // إذا كان الـ API يدعم الملاحظات
+  };
+
+  const result = await ordersStore.createOrder(payload);
+
+  if (result.success) {
+    // نجاح الطلب
+    await cartStore.clearCart(); // تفريغ السلة
+    navigateTo(`/account/orders/${result.data.id}?success=true`);
+  } else {
+    errorMessage.value =
+      result.error || "فشل إتمام الطلب، يرجى المحاولة مرة أخرى.";
+  }
+
+  isSubmitting.value = false;
+};
+
+// Lifecycle
+onMounted(async () => {
+  isLoadingData.value = true;
+  await Promise.all([cartStore.fetchCart(), addressStore.fetchAddresses()]);
+
+  // تحديد العنوان الافتراضي تلقائياً
+  const defaultAddr = addressStore.defaultAddress;
+  if (defaultAddr) {
+    selectedAddressId.value = defaultAddr.id;
+  } else if (addressStore.addresses.length > 0) {
+    selectedAddressId.value = addressStore.addresses[0].id;
+  }
+
+  isLoadingData.value = false;
+});
 </script>
 
 <style scoped>
-/* ======= Page Layout ======= */
+/* نفس الستايل السابق مع تعديلات بسيطة */
 .checkout-page {
   min-height: 100vh;
   background-color: var(--bg-body, #fffff5);
   padding: 40px 0 80px;
   font-family: "Cairo", sans-serif;
 }
-
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
 .page-title {
   text-align: center;
   font-size: 26px;
   font-weight: 600;
   color: var(--color-green-primary, #987226);
   margin-bottom: 40px;
-  letter-spacing: 0.5px;
 }
-
 .checkout-layout {
   display: grid;
   grid-template-columns: 1fr 420px;
   gap: 30px;
   align-items: start;
 }
-
-/* Right col = delivery+notes+payment, Left col = summary */
 .checkout-left {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
-
 .checkout-right {
   position: sticky;
   top: 20px;
 }
 
-/* ======= Section Card ======= */
 .section-card {
   background: #fff;
   border-radius: 14px;
@@ -368,7 +403,6 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   box-shadow: var(--shadow-2, 0px 5px 10px 0px #0000000d);
   border: 1px solid #f0ece2;
 }
-
 .section-heading {
   font-size: 20px;
   font-weight: 700;
@@ -376,26 +410,23 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   text-align: center;
   margin-bottom: 14px;
 }
-
 .divider {
   border: none;
   border-top: 1.5px solid #f0ece2;
   margin-bottom: 20px;
 }
-
 .divider-light {
   border: none;
   border-top: 1px solid #f0ece2;
   margin: 10px 0;
 }
 
-/* ======= Address Cards ======= */
+/* Address */
 .address-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-
 .address-card {
   display: flex;
   align-items: center;
@@ -404,34 +435,40 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   border-radius: 10px;
   padding: 14px 18px;
   background: #faf8f3;
-  transition:
-    border-color 0.2s,
-    background 0.2s;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-
 .address-card.selected {
   border-color: var(--color-green-primary, #987226);
   background: #fdf9f0;
 }
-
 .address-info {
   flex: 1;
   text-align: right;
 }
-
 .address-label {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-green-primary, #987226);
 }
-
+.default-badge {
+  font-size: 10px;
+  background: #eee;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
 .address-city {
   font-size: 15px;
   font-weight: 700;
   color: #333;
   margin: 4px 0;
 }
-
+.address-details-text {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 4px;
+}
 .address-phone {
   font-size: 14px;
   color: #555;
@@ -440,23 +477,28 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   gap: 6px;
   justify-content: flex-end;
 }
-
-.edit-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--color-green-primary, #987226);
-  padding: 6px;
-  border-radius: 8px;
-  transition: background 0.2s;
+.radio-circle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  margin-right: 10px;
 }
-
-.edit-btn:hover {
-  background: #f0ead8;
+.radio-circle.active {
+  border-color: var(--color-green-primary, #987226);
+  background: var(--color-green-primary, #987226);
 }
-
+.radio-circle.active::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 50%;
+}
 .add-address-btn {
   display: flex;
   align-items: center;
@@ -469,51 +511,35 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   background: transparent;
   color: #888;
   font-size: 15px;
-  font-family: "Cairo", sans-serif;
-  cursor: pointer;
-  transition:
-    border-color 0.2s,
-    color 0.2s;
+  text-decoration: none;
+  transition: all 0.2s;
 }
-
 .add-address-btn:hover {
   border-color: var(--color-green-primary, #987226);
   color: var(--color-green-primary, #987226);
 }
 
-.plus-icon {
-  font-size: 22px;
-  line-height: 1;
-}
-
-/* ======= Notes ======= */
+/* Notes */
 .notes-textarea {
   width: 100%;
-  min-height: 120px;
+  min-height: 80px;
   border: 1.5px solid #e8e0cf;
   border-radius: 10px;
-  padding: 12px 14px;
-  font-family: "Cairo", sans-serif;
-  font-size: 14px;
-  color: #555;
-  background: #faf8f3;
+  padding: 12px;
+  font-family: inherit;
   resize: vertical;
   outline: none;
-  transition: border-color 0.2s;
-  text-align: right;
 }
-
 .notes-textarea:focus {
   border-color: var(--color-green-primary, #987226);
 }
 
-/* ======= Payment Options ======= */
+/* Payment */
 .payment-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-
 .payment-option {
   display: flex;
   align-items: center;
@@ -523,218 +549,180 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   border-radius: 10px;
   cursor: pointer;
   background: #faf8f3;
-  transition:
-    border-color 0.2s,
-    background 0.2s;
-  text-align: right;
-  gap: 8px;
+  transition: all 0.2s;
 }
-
-.payment-option input[type="radio"] {
-  display: none;
-}
-
 .payment-option.active {
   border-color: var(--color-green-primary, #987226);
   background: #fdf9f0;
 }
-
-.payment-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  flex: 1;
+.payment-option input {
+  display: none;
 }
-
 .check-icon {
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: var(--color-green-primary, #987226);
+  font-weight: bold;
 }
 
-/* ======= Order Summary ======= */
+/* Summary */
 .summary-card {
   padding: 24px;
 }
-
 .order-items {
   display: flex;
   flex-direction: column;
   gap: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 10px;
 }
-
 .order-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
+  padding: 10px 0;
   border-bottom: 1px solid #f0ece2;
   gap: 12px;
 }
-
 .item-details {
   flex: 1;
   text-align: right;
 }
-
 .item-title {
   font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 6px;
-  line-height: 1.5;
+  margin-bottom: 4px;
 }
-
 .item-qty-price {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: flex-end;
   font-size: 13px;
-  color: var(--color-green-primary, #987226);
-  font-weight: 600;
-}
-
-.item-qty {
   color: #555;
 }
-
-.item-multiply,
-.item-equals {
-  color: #999;
-}
-
 .item-image {
-  width: 85px;
-  height: 70px;
+  width: 60px;
+  height: 60px;
   border-radius: 8px;
   overflow: hidden;
-  flex-shrink: 0;
   background: #f0ece2;
 }
-
 .item-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* ======= Coupon ======= */
+/* Coupon */
 .coupon-row {
   display: flex;
-  align-items: center;
   gap: 10px;
-  margin: 20px 0 16px;
+  margin: 15px 0;
   flex-direction: row-reverse;
 }
-
 .coupon-input {
   flex: 1;
-  padding: 11px 14px;
+  padding: 10px;
   border: 1.5px solid #e8e0cf;
-  border-radius: 10px;
-  font-family: "Cairo", sans-serif;
-  font-size: 14px;
-  color: #555;
-  background: #faf8f3;
+  border-radius: 8px;
   outline: none;
-  text-align: right;
-  transition: border-color 0.2s;
 }
-
 .coupon-input:focus {
   border-color: var(--color-green-primary, #987226);
 }
-
 .coupon-apply-btn {
-  padding: 11px 24px;
+  padding: 10px 20px;
   background: var(--color-green-primary, #987226);
   color: #fff;
   border: none;
-  border-radius: 10px;
-  font-family: "Cairo", sans-serif;
-  font-size: 15px;
-  font-weight: 700;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
-  white-space: nowrap;
+}
+.coupon-success {
+  font-size: 13px;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  text-align: center;
 }
 
-.coupon-apply-btn:hover {
-  background: var(--color-green-hover, #896722);
-}
-
-/* ======= Totals ======= */
+/* Totals */
 .totals-section {
   margin-bottom: 20px;
 }
-
 .total-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
-}
-
-.total-label {
+  padding: 8px 0;
   font-size: 15px;
-  font-weight: 600;
-  color: #444;
 }
-
-.total-amount {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--color-green-primary, #987226);
+.total-row.discount {
+  color: #059669;
 }
-
-.total-row.final-total .total-label.final {
+.final-total {
   font-size: 18px;
   font-weight: 800;
-  color: #222;
+  color: #1a1a2e;
+  border-top: 2px solid #eee;
+  margin-top: 10px;
+  padding-top: 15px;
 }
 
-.total-row.final-total .total-amount.final {
-  font-size: 20px;
-  font-weight: 800;
-}
-
-/* ======= Confirm Button ======= */
+/* Confirm Btn */
 .confirm-btn {
   display: block;
   width: 100%;
-  padding: 18px;
+  padding: 16px;
   background: var(--color-green-primary, #987226);
   color: #fff;
   border: none;
   border-radius: 12px;
-  font-family: "Cairo", sans-serif;
   font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+  font-weight: 700;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    transform 0.15s;
+  transition: all 0.2s;
+}
+.confirm-btn:hover:not(:disabled) {
+  background: #896722;
+  transform: translateY(-2px);
+}
+.confirm-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+.error-msg {
+  color: #dc2626;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 10px;
 }
 
-.confirm-btn:hover {
-  background: var(--color-green-hover, #896722);
-  transform: translateY(-1px);
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-
-.confirm-btn:active {
-  background: var(--color-green-active, #7a5b1e);
-  transform: translateY(0);
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--color-green-primary, #987226);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
 }
-
-/* ======= Responsive ======= */
-@media (max-width: 1024px) {
-  .checkout-layout {
-    grid-template-columns: 1fr 360px;
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
 
@@ -742,24 +730,9 @@ const grandTotal = computed(() => subtotal.value + shippingCost.value);
   .checkout-layout {
     grid-template-columns: 1fr;
   }
-
   .checkout-right {
     position: static;
     order: -1;
-  }
-
-  .payment-options {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .payment-options {
-    grid-template-columns: 1fr;
-  }
-
-  .section-card {
-    padding: 18px 16px;
   }
 }
 </style>

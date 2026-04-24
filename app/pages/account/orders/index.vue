@@ -11,144 +11,108 @@
         <div class="account-card">
           <h1 class="card-title">طلباتي</h1>
 
-          <div class="orders-list">
-            <!-- الطلب 1 -->
-            <div class="order-card">
+          <!-- Loading State -->
+          <div
+            v-if="store.loading && !store.orders.length"
+            class="loading-state"
+          >
+            <div class="spinner"></div>
+            <p>جاري تحميل طلباتك...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="!store.orders.length" class="empty-state">
+            <Icon name="ph:shopping-bag-open" class="empty-icon" />
+            <p>لا توجد طلبات حالياً</p>
+            <NuxtLink to="/products" class="shop-btn">تصفح المنتجات</NuxtLink>
+          </div>
+
+          <!-- Orders List -->
+          <div v-else class="orders-list">
+            <div
+              v-for="order in store.orders"
+              :key="order.id"
+              class="order-card"
+            >
+              <!-- Header -->
               <div class="order-header">
-                <span class="order-status delivered">تم التسليم</span>
-                <span class="order-number">1212#</span>
+                <span
+                  class="order-status"
+                  :class="getStatusClass(order.status)"
+                >
+                  {{ getStatusText(order.status) }}
+                </span>
+                <span class="order-number"
+                  >#{{ order.orderNumber.split("-").pop() }}</span
+                >
               </div>
 
+              <!-- Meta -->
               <div class="order-meta">
-                <span class="order-date">1446 الفعده دو 20</span>
-                <Icon name="ph:calendar" class="meta-icon" />
+                <Icon name="ph:calendar-blank" class="meta-icon" />
+                <span class="order-date">{{
+                  formatDate(order.createdAt)
+                }}</span>
               </div>
 
+              <!-- Products Preview -->
               <div class="order-products">
-                <div class="product-thumb">
-                  <img src="/images/products/product1.jpg" alt="منتج" />
+                <div
+                  v-for="(item, idx) in order.items.slice(0, 3)"
+                  :key="idx"
+                  class="product-thumb"
+                >
+                  <img :src="item.product?.mainImage" alt="منتج" />
                 </div>
-                <div class="product-thumb">
-                  <img src="/images/products/product1.jpg" alt="منتج" />
+                <div
+                  v-if="order.items.length > 3"
+                  class="product-thumb more-count"
+                >
+                  +{{ order.items.length - 3 }}
                 </div>
               </div>
 
+              <!-- Summary -->
               <div class="order-summary">
                 <div class="summary-row">
                   <span>المجموع:</span>
-                  <span class="total-price">ريال 18,000</span>
+                  <span class="total-price">{{
+                    formatCurrency(order.totalAmount)
+                  }}</span>
                 </div>
                 <div class="summary-row">
                   <span>الدفع:</span>
-                  <span class="payment-status paid">مدفوع</span>
+                  <!-- نفترض الدفع عند الاستلام أو أونلاين بناءً على وجود بيانات، هنا تبسيط -->
+                  <span class="payment-status paid">مدفوع / قيد المعالجة</span>
                 </div>
               </div>
 
+              <!-- Actions -->
               <div class="order-actions">
                 <button
                   class="btn details-btn"
-                  @click="viewOrderDetails('1212')"
+                  @click="viewOrderDetails(order.id)"
                 >
                   <Icon name="ph:file-text" class="btn-icon" />
                   تفاصيل الطلب
                 </button>
-                <button class="btn cancel-btn disabled">
-                  <Icon name="ph:x" class="btn-icon" />
-                  إلغاء الطلب
-                </button>
-              </div>
-            </div>
 
-            <!-- الطلب 2 -->
-            <div class="order-card">
-              <div class="order-header">
-                <span class="order-status processing">قيد التجهيز</span>
-                <span class="order-number">1213#</span>
-              </div>
-
-              <div class="order-meta">
-                <span class="order-date">1446 الفعده دو 19</span>
-                <Icon name="ph:calendar" class="meta-icon" />
-              </div>
-
-              <div class="order-products">
-                <div class="product-thumb">
-                  <img src="/images/products/product1.jpg" alt="منتج" />
-                </div>
-                <div class="product-thumb">
-                  <img src="/images/products/product1.jpg" alt="منتج" />
-                </div>
-              </div>
-
-              <div class="order-summary">
-                <div class="summary-row">
-                  <span>المجموع:</span>
-                  <span class="total-price">ريال 15,500</span>
-                </div>
-                <div class="summary-row">
-                  <span>الدفع:</span>
-                  <span class="payment-status unpaid">غير مدفوع</span>
-                </div>
-              </div>
-
-              <div class="order-actions">
                 <button
-                  class="btn details-btn"
-                  @click="viewOrderDetails('1212')"
+                  v-if="canCancel(order.status)"
+                  class="btn cancel-btn"
+                  @click="confirmCancel(order)"
+                  :disabled="cancellingId === order.id"
                 >
-                  <Icon name="ph:file-text" class="btn-icon" />
-                  تفاصيل الطلب
-                </button>
-                <button class="btn cancel-btn">
-                  <Icon name="ph:x" class="btn-icon" />
+                  <span
+                    v-if="cancellingId === order.id"
+                    class="mini-spinner"
+                  ></span>
+                  <Icon v-else name="ph:x" class="btn-icon" />
                   إلغاء الطلب
                 </button>
-              </div>
-            </div>
-
-            <!-- الطلب 3 -->
-            <div class="order-card">
-              <div class="order-header">
-                <span class="order-status shipping">قيد الشحن</span>
-                <span class="order-number">1214#</span>
-              </div>
-
-              <div class="order-meta">
-                <span class="order-date">1446 الفعده دو 18</span>
-                <Icon name="ph:calendar" class="meta-icon" />
-              </div>
-
-              <div class="order-products">
-                <div class="product-thumb">
-                  <img src="/images/products/product1.jpg" alt="منتج" />
-                </div>
-                <div class="product-thumb">
-                  <img src="/images/products/product1.jpg" alt="منتج" />
-                </div>
-              </div>
-
-              <div class="order-summary">
-                <div class="summary-row">
-                  <span>المجموع:</span>
-                  <span class="total-price">ريال 22,300</span>
-                </div>
-                <div class="summary-row">
-                  <span>الدفع:</span>
-                  <span class="payment-status paid">مدفوع</span>
-                </div>
-              </div>
-
-              <div class="order-actions">
-                <button
-                  class="btn details-btn"
-                  @click="viewOrderDetails('1212')"
-                >
-                  <Icon name="ph:file-text" class="btn-icon" />
-                  تفاصيل الطلب
-                </button>
-                <button class="btn cancel-btn disabled">
+                <button v-else class="btn cancel-btn disabled">
                   <Icon name="ph:x" class="btn-icon" />
-                  إلغاء الطلب
+                  غير قابل للإلغاء
                 </button>
               </div>
             </div>
@@ -156,21 +120,113 @@
         </div>
       </main>
     </div>
+
+    <!-- Toast Notification -->
+    <Teleport to="body">
+      <transition name="toast">
+        <div v-if="toast.show" class="toast" :class="toast.type">
+          {{ toast.message }}
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
+
 <script setup>
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
+import { useOrdersStore } from "@/stores/orders";
+
+definePageMeta({ middleware: ["auth"] });
 
 const router = useRouter();
+const store = useOrdersStore();
+
+// Local State for UI interactions
+const cancellingId = ref(null);
+const toast = reactive({ show: false, message: "", type: "success" });
+
+const showToast = (message, type = "success") => {
+  toast.message = message;
+  toast.type = type;
+  toast.show = true;
+  setTimeout(() => (toast.show = false), 3000);
+};
+
+onMounted(() => {
+  store.fetchMyOrders();
+});
+
+// Helpers
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("ar-EG", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat("ar-EG", {
+    style: "currency",
+    currency: "EGP",
+  }).format(amount);
+};
+
+const getStatusText = (status) => {
+  const map = {
+    pending: "قيد المراجعة",
+    processing: "جاري التجهيز",
+    shipped: "تم الشحن",
+    delivered: "تم التسليم",
+    cancelled: "ملغي",
+  };
+  return map[status] || status;
+};
+
+const getStatusClass = (status) => {
+  const map = {
+    pending: "status-pending",
+    processing: "status-processing",
+    shipped: "status-shipped",
+    delivered: "status-delivered",
+    cancelled: "status-cancelled",
+  };
+  return map[status] || "";
+};
+
+const canCancel = (status) => {
+  return status === "pending" || status === "processing";
+};
 
 const viewOrderDetails = (orderId) => {
   router.push(`/account/orders/${orderId}`);
 };
+
+const confirmCancel = async (order) => {
+  if (
+    !confirm(
+      `هل أنت متأكد من إلغاء الطلب رقم #${order.orderNumber.split("-").pop()}؟`,
+    )
+  )
+    return;
+
+  cancellingId.value = order.id;
+  const result = await store.cancelOrder(order.id);
+
+  if (result.success) {
+    showToast("تم إلغاء الطلب بنجاح");
+  } else {
+    showToast(result.error || "فشل إلغاء الطلب", "error");
+  }
+  cancellingId.value = null;
+};
 </script>
-<script setup></script>
 
 <style scoped lang="scss">
+/* Base Layout Styles (Same as provided) */
 .account-layout {
   min-height: 100vh;
   display: flex;
@@ -178,16 +234,13 @@ const viewOrderDetails = (orderId) => {
   padding: 20px;
   gap: 24px;
   padding-top: 50px;
-
   @media (max-width: 768px) {
     flex-direction: column;
   }
 }
-
 .main-content {
   flex: 1;
 }
-
 .account-card {
   background: var(--color-green-white);
   border-radius: 16px;
@@ -195,7 +248,6 @@ const viewOrderDetails = (orderId) => {
   padding: 60px 40px 40px;
   position: relative;
 }
-
 .card-title {
   font-size: 24px;
   font-weight: 700;
@@ -210,165 +262,253 @@ const viewOrderDetails = (orderId) => {
   border-radius: 12px;
 }
 
+/* States */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  color: var(--text-muted);
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--color-green-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+.shop-btn {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: var(--color-green-primary);
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+/* Order Card Styles */
 .orders-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
 .order-card {
   background: var(--color-green-white);
   border-radius: 12px;
   padding: 24px;
   position: relative;
   box-shadow: var(--shadow-1);
+  border: 1px solid #eee;
+  transition: transform 0.2s;
+}
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
 
-  .order-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.order-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+.status-processing {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.status-shipped {
+  background: #f0fdf4;
+  color: #15803d;
+}
+.status-delivered {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+.status-cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+}
 
-    .order-status {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      &.delivered {
-        background: #e8f5e9;
-        color: #2e7d32;
-      }
-      &.processing {
-        background: #fff8e1;
-        color: #f57c00;
-      }
-      &.shipping {
-        background: #e3f2fd;
-        color: #1976d2;
-      }
-    }
+.order-number {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+.order-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.meta-icon {
+  font-size: 16px;
+}
 
-    .order-number {
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-  }
+.order-products {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+.product-thumb {
+  width: 70px;
+  height: 70px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f5f5;
+  flex-shrink: 0;
+  border: 1px solid #eee;
+}
+.product-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.more-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee;
+  color: #555;
+  font-weight: bold;
+  font-size: 12px;
+}
 
-  .order-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 16px;
+.order-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed #eee;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-main);
+}
+.total-price {
+  font-weight: 700;
+  color: var(--color-green-primary);
+}
+.payment-status.paid {
+  color: #059669;
+  font-weight: 600;
+  font-size: 12px;
+}
 
-    .meta-icon {
-      font-size: 16px;
-    }
-  }
+.order-actions {
+  display: flex;
+  gap: 12px;
+}
+.btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+.details-btn {
+  background: var(--color-green-light);
+  color: var(--color-green-primary);
+  border: 1px solid transparent;
+}
+.details-btn:hover {
+  background: #eaddcf;
+}
+.cancel-btn {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #ffe4e6;
+}
+.cancel-btn:hover:not(:disabled) {
+  background: #ffe4e6;
+}
+.cancel-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+.cancel-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
+  color: #999;
+  border-color: #ddd;
+}
+.mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(225, 29, 72, 0.3);
+  border-top-color: #e11d48;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 
-  .order-products {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-
-    .product-thumb {
-      width: 80px;
-      height: 80px;
-      border-radius: 8px;
-      overflow: hidden;
-      background: var(--color-green-light);
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-    }
-  }
-
-  .order-summary {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
-
-    .summary-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 14px;
-      color: var(--text-main);
-
-      .total-price {
-        font-weight: 700;
-        color: var(--color-green-primary);
-      }
-
-      .payment-status {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        &.paid {
-          background: #e8f5e9;
-          color: #2e7d32;
-        }
-        &.unpaid {
-          background: #fff8e1;
-          color: #f57c00;
-        }
-      }
-    }
-  }
-
-  .order-actions {
-    display: flex;
-    gap: 12px;
-
-    .btn {
-      flex: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-
-      .btn-icon {
-        font-size: 16px;
-      }
-    }
-
-    .details-btn {
-      background: var(--color-green-light);
-      color: var(--color-green-primary);
-      border: 1px solid var(--color-green-light-active);
-
-      &:hover {
-        background: var(--color-green-light-hover);
-      }
-    }
-
-    .cancel-btn {
-      background: #fde0e0;
-      color: #d32f2f;
-      border: 1px solid #fbb4b4;
-
-      &:hover {
-        background: #fccccc;
-      }
-
-      &.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: #f5f5f5;
-        color: #999;
-        border-color: #ddd;
-      }
-    }
-  }
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.toast.success {
+  background: #10b981;
+}
+.toast.error {
+  background: #ef4444;
+}
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
 }
 </style>

@@ -1,88 +1,132 @@
 <template>
   <div class="container">
     <div class="account-layout">
-      <!-- الشريط الجانبي -->
       <aside class="sidebar">
         <AccountSidebar />
       </aside>
 
-      <!-- المحتوى الرئيسي -->
       <main class="main-content">
         <div class="account-card">
           <h1 class="card-title">تفاصيل الطلب</h1>
 
-          <!-- رأس الطلب -->
-          <div class="order-header-details">
-            <div class="header-row">
-              <span class="header-label">رقم الطلب:</span>
-              <span class="header-value">#{{ order.id }}</span>
-            </div>
-            <div class="header-row">
-              <span class="header-label">حالة الطلب:</span>
-              <span class="header-value" :class="`status-${order.status}`">
-                {{ getStatusText(order.status) }}
-              </span>
-            </div>
-            <div class="header-row">
-              <span class="header-label">تاريخ الطلب:</span>
-              <span class="header-value">{{ order.date }}</span>
-            </div>
+          <div v-if="store.loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>جاري تحميل التفاصيل...</p>
           </div>
 
-          <!-- منتجات الطلب -->
-          <div class="order-products-details">
-            <h2 class="section-title">المنتجات</h2>
-            <div class="products-grid">
-              <div
-                v-for="product in order.products"
-                :key="product.id"
-                class="product-item"
-              >
-                <div class="product-image">
-                  <img :src="product.image" :alt="product.name" />
+          <div v-else-if="!order" class="error-state">
+            <p>لم يتم العثور على تفاصيل الطلب.</p>
+            <button class="back-btn" @click="goBack">العودة للقائمة</button>
+          </div>
+
+          <div v-else>
+            <!-- Order Header Info -->
+            <div class="order-header-details">
+              <div class="header-grid">
+                <div class="header-item">
+                  <span class="label">رقم الطلب</span>
+                  <span class="value"
+                    >#{{ order.orderNumber.split("-").pop() }}</span
+                  >
                 </div>
-                <div class="product-info">
-                  <h3 class="product-name">{{ product.name }}</h3>
-                  <p class="product-price">ج.م {{ product.price }}</p>
-                  <p class="product-quantity">الكمية: {{ product.quantity }}</p>
+                <div class="header-item">
+                  <span class="label">التاريخ</span>
+                  <span class="value">{{ formatDate(order.createdAt) }}</span>
+                </div>
+                <div class="header-item">
+                  <span class="label">الحالة</span>
+                  <span
+                    class="value status-badge"
+                    :class="getStatusClass(order.status)"
+                  >
+                    {{ getStatusText(order.status) }}
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- ملخص الطلب -->
-          <div class="order-summary-details">
-            <h2 class="section-title">ملخص الطلب</h2>
-            <div class="summary-row">
-              <span>المجموع الفرعي:</span>
-              <span>ج.م {{ order.subtotal }}</span>
+            <!-- Shipping Address -->
+            <div class="section-block">
+              <h2 class="section-title">عنوان الشحن</h2>
+              <div class="address-box">
+                <div class="addr-header">
+                  <strong>{{ order.shippingAddress?.fullName }}</strong>
+                  <span class="phone">{{
+                    order.shippingAddress?.phoneNumber
+                  }}</span>
+                </div>
+                <p class="addr-text">
+                  {{ order.shippingAddress?.streetAddress }}<br />
+                  {{
+                    order.shippingAddress?.landmark
+                      ? order.shippingAddress.landmark + " - "
+                      : ""
+                  }}
+                  {{ order.shippingAddress?.city?.nameAr }},
+                  {{ order.shippingAddress?.city?.governorate?.nameAr }}
+                </p>
+              </div>
             </div>
-            <div class="summary-row">
-              <span>الشحن:</span>
-              <span>ج.م {{ order.shipping }}</span>
+
+            <!-- Products -->
+            <div class="section-block">
+              <h2 class="section-title">المنتجات</h2>
+              <div class="products-list">
+                <div
+                  v-for="item in order.items"
+                  :key="item.id"
+                  class="product-row"
+                >
+                  <div class="prod-img">
+                    <img :src="item.product?.mainImage" alt="" />
+                  </div>
+                  <div class="prod-info">
+                    <h3>{{ item.product?.metaTitle || item.product?.name }}</h3>
+                    <div class="prod-meta">
+                      <span>الكمية: {{ item.quantity }}</span>
+                      <span class="price">{{
+                        formatPrice(item.priceAtPurchase)
+                      }}</span>
+                    </div>
+                  </div>
+                  <div class="prod-total">
+                    {{ formatPrice(item.priceAtPurchase * item.quantity) }}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="summary-row total">
-              <span>المجموع الكلي:</span>
-              <span>ج.م {{ order.total }}</span>
+
+            <!-- Financial Summary -->
+            <div class="section-block summary-block">
+              <h2 class="section-title">ملخص الدفع</h2>
+              <div class="summary-rows">
+                <div class="row">
+                  <span>المجموع الفرعي</span>
+                  <span>{{ formatPrice(order.subTotal) }}</span>
+                </div>
+                <div class="row">
+                  <span>الشحن</span>
+                  <span>{{ formatPrice(order.shippingFee) }}</span>
+                </div>
+                <div v-if="order.discountAmount > 0" class="row discount">
+                  <span>الخصم ({{ order.couponCode }})</span>
+                  <span>- {{ formatPrice(order.discountAmount) }}</span>
+                </div>
+                <div class="row total">
+                  <span>الإجمالي النهائي</span>
+                  <span>{{ formatPrice(order.totalAmount) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions-footer">
+              <button class="back-btn" @click="goBack">
+                <Icon name="ph:arrow-right" />
+                العودة إلى الطلبات
+              </button>
             </div>
           </div>
-
-          <!-- حالة الدفع -->
-          <div class="payment-status-details">
-            <h2 class="section-title">حالة الدفع</h2>
-            <div class="payment-row">
-              <span>الحالة:</span>
-              <span :class="`payment-status ${order.paymentStatus}`">
-                {{ getPaymentStatusText(order.paymentStatus) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- زر العودة -->
-          <button class="back-btn" @click="goBack">
-            <Icon name="ph:arrow-left" class="back-icon" />
-            العودة إلى الطلبات
-          </button>
         </div>
       </main>
     </div>
@@ -90,120 +134,80 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
+import { useOrdersStore } from "@/stores/orders";
+
+definePageMeta({ middleware: ["auth"] });
 
 const route = useRoute();
 const router = useRouter();
+const store = useOrdersStore();
 
-// بيانات وهمية للطلب (في التطبيق الحقيقي: اجلبها من API)
-const order = ref({
-  id: "",
-  status: "delivered", // delivered | processing | shipping
-  date: "",
-  products: [],
-  subtotal: 0,
-  shipping: 0,
-  total: 0,
-  paymentStatus: "paid", // paid | unpaid
+// Fetch specific order details
+// ملاحظة: في الـ API الذي أرسلته، لا يوجد endpoint محدد لجلب طلب واحد للمستخدم (مثل /my-orders/:id)،
+// لكن عادةً ما يكون موجوداً. إذا لم يكن موجوداً، سنعتمد على الفلترة من قائمة الطلبات المحملة مسبقاً.
+// سأفترض وجود endpoint أو سنستخدم البيانات من القائمة إذا كانت محملة.
+// للتوضيح، سأستخدم منطق يجلب الطلب من الـ Store إذا كان موجوداً، وإلا يحاول جلبه.
+
+const order = computed(() => {
+  return (
+    store.orders.find((o) => o.id === route.params.id) || store.currentOrder
+  );
 });
 
-onMounted(() => {
-  const orderId = route.params.id;
-  // ✅ محاكاة جلب البيانات من API
-  loadOrderDetails(orderId);
+onMounted(async () => {
+  // إذا لم يكن الطلب في القائمة المحلية، نحاول جلبه (إذا توفر الـ endpoint)
+  // أو نجلب كل الطلبات ونبحث فيها
+  if (!store.orders.length) {
+    await store.fetchMyOrders();
+  }
+
+  // محاولة جلب تفاصيل محددة إذا توفرت الدالة في الـ Store (يمكن إضافتها لاحقاً)
+  // const found = store.orders.find(o => o.id === route.params.id);
+  // if (!found) { /* Handle error or fetch single */ }
 });
 
-const loadOrderDetails = (id) => {
-  // بيانات وهمية حسب رقم الطلب
-  const mockOrders = {
-    1212: {
-      id: "1212",
-      status: "delivered",
-      date: "1446 الفعده دو 20",
-      products: [
-        {
-          id: 1,
-          name: '* 36" 180 كونتر خشب قهوة ترابيزة',
-          image: "/images/products/product1.jpg",
-          price: "9,000",
-          quantity: 2,
-        },
-        {
-          id: 2,
-          name: '* 40" 200 كونتر خشب قهوة ترابيزة',
-          image: "/images/products/product1.jpg",
-          price: "9,000",
-          quantity: 1,
-        },
-      ],
-      subtotal: 18000,
-      shipping: 0,
-      total: 18000,
-      paymentStatus: "paid",
-    },
-    1213: {
-      id: "1213",
-      status: "processing",
-      date: "1446 الفعده دو 19",
-      products: [
-        {
-          id: 3,
-          name: '* 32" 160 كونتر خشب قهوة ترابيزة',
-          image: "/images/products/product1.jpg",
-          price: "7,750",
-          quantity: 2,
-        },
-      ],
-      subtotal: 15500,
-      shipping: 0,
-      total: 15500,
-      paymentStatus: "unpaid",
-    },
-    1214: {
-      id: "1214",
-      status: "shipping",
-      date: "1446 الفعده دو 18",
-      products: [
-        {
-          id: 4,
-          name: '* 38" 190 كونتر خشب قهوة ترابيزة',
-          image: "/images/products/product1.jpg",
-          price: "11,150",
-          quantity: 2,
-        },
-      ],
-      subtotal: 22300,
-      shipping: 0,
-      total: 22300,
-      paymentStatus: "paid",
-    },
-  };
+// Helpers
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("ar-EG", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
-  order.value = mockOrders[id] || {
-    id: "غير معروف",
-    status: "processing",
-    date: "غير متوفر",
-    products: [],
-    subtotal: 0,
-    shipping: 0,
-    total: 0,
-    paymentStatus: "unpaid",
-  };
+const formatPrice = (price) => {
+  return new Intl.NumberFormat("ar-EG", {
+    style: "currency",
+    currency: "EGP",
+  }).format(price);
 };
 
 const getStatusText = (status) => {
-  const texts = {
+  const map = {
+    pending: "قيد المراجعة",
+    processing: "جاري التجهيز",
+    shipped: "تم الشحن",
     delivered: "تم التسليم",
-    processing: "قيد التجهيز",
-    shipping: "قيد الشحن",
+    cancelled: "ملغي",
   };
-  return texts[status] || "غير معروف";
+  return map[status] || status;
 };
 
-const getPaymentStatusText = (status) => {
-  return status === "paid" ? "مدفوع" : "غير مدفوع";
+const getStatusClass = (status) => {
+  const map = {
+    pending: "status-pending",
+    processing: "status-processing",
+    shipped: "status-shipped",
+    delivered: "status-delivered",
+    cancelled: "status-cancelled",
+  };
+  return map[status] || "";
 };
 
 const goBack = () => {
@@ -212,6 +216,7 @@ const goBack = () => {
 </script>
 
 <style scoped lang="scss">
+/* Layout & Card */
 .account-layout {
   min-height: 100vh;
   display: flex;
@@ -219,24 +224,21 @@ const goBack = () => {
   padding: 20px;
   gap: 24px;
   padding-top: 50px;
-
   @media (max-width: 768px) {
     flex-direction: column;
   }
 }
-
 .main-content {
   flex: 1;
 }
-
 .account-card {
   background: var(--color-green-white);
   border-radius: 16px;
   box-shadow: var(--shadow-3);
   padding: 60px 40px 40px;
   position: relative;
+  min-height: 400px;
 }
-
 .card-title {
   font-size: 24px;
   font-weight: 700;
@@ -251,168 +253,229 @@ const goBack = () => {
   border-radius: 12px;
 }
 
-/* رأس الطلب */
-.order-header-details {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border-color);
-
-  .header-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 16px;
-    margin-bottom: 12px;
-
-    .header-label {
-      color: var(--text-muted);
-    }
-
-    .header-value {
-      font-weight: 600;
-      &.status-delivered {
-        color: #2e7d32;
-      }
-      &.status-processing {
-        color: #f57c00;
-      }
-      &.status-shipping {
-        color: #1976d2;
-      }
-    }
-  }
-}
-
-/* المنتجات */
-.section-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin: 32px 0 16px 0;
-}
-
-.products-grid {
-  display: grid;
-  gap: 16px;
-}
-
-.product-item {
+/* Loading & Error */
+.loading-state,
+.error-state {
   display: flex;
-  gap: 16px;
-  padding: 16px;
-  background: var(--color-green-white);
-  border-radius: 12px;
-
-  .product-image {
-    width: 100px;
-    height: 100px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--color-green-light);
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-
-  .product-info {
-    flex: 1;
-
-    .product-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-main);
-      margin: 0 0 8px 0;
-    }
-
-    .product-price {
-      font-size: 14px;
-      color: var(--color-green-primary);
-      margin: 0 0 4px 0;
-    }
-
-    .product-quantity {
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-  }
-}
-
-/* الملخص */
-.order-summary-details {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-color);
-
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 16px;
-    margin-bottom: 12px;
-    color: var(--text-main);
-
-    &.total {
-      font-weight: 700;
-      font-size: 18px;
-      color: var(--color-green-primary);
-    }
-  }
-}
-
-/* حالة الدفع */
-.payment-status-details {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-color);
-
-  .payment-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 16px;
-
-    .payment-status {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 14px;
-      font-weight: 600;
-      &.paid {
-        background: #e8f5e9;
-        color: #2e7d32;
-      }
-      &.unpaid {
-        background: #fff8e1;
-        color: #f57c00;
-      }
-    }
-  }
-}
-
-/* زر العودة */
-.back-btn {
-  width: 100%;
-  margin-top: 32px;
-  padding: 16px;
-  background: var(--color-green-light);
-  color: var(--color-green-primary);
-  border: 1px solid var(--color-green-light-active);
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 60px 0;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--color-green-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Header Grid */
+.order-header-details {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+.header-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+}
+.header-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.header-item .label {
+  font-size: 12px;
+  color: #888;
+}
+.header-item .value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  width: fit-content;
+}
+.status-pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+.status-processing {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.status-shipped {
+  background: #f0fdf4;
+  color: #15803d;
+}
+.status-delivered {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* Sections */
+.section-block {
+  margin-bottom: 30px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 15px;
+  border-right: 4px solid var(--color-green-primary);
+  padding-right: 10px;
+}
+
+/* Address */
+.address-box {
+  background: #f9fafb;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+.addr-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.addr-header strong {
+  color: #333;
+}
+.addr-header .phone {
+  direction: ltr;
+  color: #555;
+  font-size: 14px;
+}
+.addr-text {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Products List */
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.product-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 10px;
+}
+.prod-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+.prod-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.prod-info {
+  flex: 1;
+}
+.prod-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+.prod-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #666;
+}
+.prod-meta .price {
+  color: var(--color-green-primary);
+  font-weight: 600;
+}
+.prod-total {
+  font-weight: 700;
+  color: #1a1a2e;
+  font-size: 16px;
+  min-width: 80px;
+  text-align: left;
+}
+
+/* Summary */
+.summary-block {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+}
+.summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  color: #555;
+}
+.row.discount {
+  color: #059669;
+}
+.row.total {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ccc;
+  font-weight: 800;
+  font-size: 18px;
+  color: #1a1a2e;
+}
+
+/* Footer */
+.actions-footer {
+  margin-top: 20px;
+}
+.back-btn {
+  display: flex;
+  align-items: center;
   gap: 8px;
-
-  .back-icon {
-    font-size: 20px;
-  }
-
-  &:hover {
-    background: var(--color-green-light-hover);
-    transform: translateY(-2px);
-  }
+  padding: 12px 24px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #555;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.back-btn:hover {
+  background: #f5f5f5;
+  border-color: #bbb;
+  color: #333;
 }
 </style>
