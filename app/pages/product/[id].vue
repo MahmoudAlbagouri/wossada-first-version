@@ -1307,9 +1307,10 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString("ar-EG");
   .product-page {
     padding: 30px 16px;
   }
-  .product-info-section {
+  .product-info-section .product-header {
     .product-title {
       font-size: 22px;
+      line-height: 1.4;
     }
     .price-section .price-row .new-price {
       font-size: 28px;
@@ -1318,7 +1319,7 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString("ar-EG");
   .tabs-section {
     .tabs-nav .tab-button {
       padding: 10px 16px;
-      font-size: 14px;
+      font-size: 12px;
     }
     .tabs-content .tab-pane .review-footer {
       flex-direction: column;
