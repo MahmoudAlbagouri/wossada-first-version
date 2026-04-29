@@ -1,59 +1,84 @@
 import { defineStore } from "pinia";
+import { ref, computed } from "vue";
 
-export const useCategoryStore = defineStore("category", {
-  state: () => ({
-    categories: [],
-    loading: false,
-    error: null,
-  }),
+export const useCategoryStore = defineStore("category", () => {
+  // --- Composables ---
+  const config = useRuntimeConfig();
+  const { locale } = useI18n();
+  // نفترض وجود useApi كـ helper عندك، وإذا لم يوجد سنستخدم $fetch العادية
+  const api = useApi ? useApi() : null;
 
-  getters: {
-    topLevelCategories: (state) => {
-      return state.categories.filter((cat) => !cat.parentId);
-    },
+  // --- State ---
+  const categories = ref([]);
+  const loading = ref(false);
+  const error = ref(null);
 
-    getCategoryName:
-      (state) =>
-      (category, currentLang = "ar") => {
-        if (!category) return "";
-        if (category.translations && category.translations.length > 0) {
-          const trans = category.translations.find(
-            (t) => t.languageCode === currentLang,
-          );
-          return trans ? trans.name : category.translations[0].name;
-        }
-        return category.name || "";
-      },
-  },
+  // --- Getters ---
 
-  actions: {
-    async fetchCategories(lang = null) {
-      this.loading = true;
-      try {
-        const nuxtApp = useNuxtApp();
-        const config = useRuntimeConfig();
-        const token =
-          useCookie("auth_token").value ||
-          nuxtApp.$pinia.state.value.auth?.token;
+  // جلب الأقسام الرئيسية فقط
+  const topLevelCategories = computed(() => {
+    return categories.value.filter((cat) => !cat.parentId);
+  });
 
-        const response = await $fetch("/categories/nav", {
-          baseURL: config.public.apiBase,
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            "Accept-Language": lang || nuxtApp.$i18n?.locale?.value || "ar",
-            "Content-Type": "application/json",
-          },
-        });
+  // دالة جلب الاسم بناءً على اللغة المفعلة
+  const getCategoryName = computed(() => {
+    return (category, langOverride = null) => {
+      if (!category) return "";
 
-        if (response.success) {
-          this.categories = [...response.data];
-          return this.categories; // ✅ رجّع قيمة
-        }
-      } catch (error) {
-        console.error("Fetch Categories Error:", error);
-      } finally {
-        this.loading = false;
+      // استخدام اللغة الممررة أو لغة النظام الحالية
+      const currentLang = langOverride || locale.value;
+
+      if (category.translations?.length > 0) {
+        const trans = category.translations.find(
+          (t) => t.languageCode === currentLang,
+        );
+        return trans ? trans.name : category.translations[0].name;
       }
-    },
-  },
+      return category.name || "";
+    };
+  });
+
+  // --- Actions ---
+
+  async function fetchCategories(lang = null) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const token = useCookie("auth_token").value;
+      const targetLang = lang || locale.value || "ar";
+
+      // ملاحظة: إذا كنت تستخدم useApi فهو يتعامل مع التوكن والـ baseURL تلقائياً
+      const response = await $fetch("/categories/nav", {
+        baseURL: config.public.apiBase,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Accept-Language": targetLang,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.success) {
+        categories.value = response.data;
+        return categories.value;
+      }
+    } catch (err) {
+      error.value = "حدث خطأ أثناء جلب الأقسام";
+      console.error("Fetch Categories Error:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  return {
+    // State
+    categories,
+    loading,
+    error,
+    // Getters
+    topLevelCategories,
+    getCategoryName,
+    // Actions
+    fetchCategories,
+  };
 });

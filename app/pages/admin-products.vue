@@ -1080,7 +1080,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useProductsStore } from "@/stores/products.js";
 import { useColorsStore } from "@/stores/colors.js";
 import { useSizesStore } from "@/stores/sizes.js";
@@ -1089,12 +1089,20 @@ import { useMaterialsStore } from "@/stores/materials.js";
 import { useCategoryStore } from "@/stores/category.js";
 import ImageUploader from "@/components/shared/ImageUploader.vue";
 
+// ✅ استدعاء اللغة لضمان التفاعلية
+const { locale } = useI18n();
 const store = useProductsStore();
 const colorsStore = useColorsStore();
 const sizesStore = useSizesStore();
 const brandsStore = useBrandsStore();
 const materialsStore = useMaterialsStore();
 const categoryStore = useCategoryStore();
+
+// ✅ راقب تغيير اللغة وأعد الجلب فوراً لضمان تحديث البيانات من السيرفر
+watch(locale, async (newLang) => {
+  console.log("🔄 جاري تحديث قائمة المنتجات للغة:", newLang);
+  await store.fetchProducts();
+});
 
 // ===== Toast =====
 const toast = reactive({ show: false, msg: "", type: "success" });
@@ -1194,7 +1202,6 @@ const openEditModal = async (product) => {
   const arTrans = full.translations?.find((t) => t.languageCode === "ar") || {};
   const enTrans = full.translations?.find((t) => t.languageCode === "en") || {};
 
-  // ✅ تحويل specifications object → array للـ UI
   const specsToArray = (specsObj) => {
     if (!specsObj || typeof specsObj !== "object") return [];
     return Object.entries(specsObj).map(([key, value]) => ({ key, value }));
@@ -1264,7 +1271,6 @@ const viewProduct = (product) => {
 
 // ===== Submit =====
 const submitForm = async () => {
-  // ✅ تحويل specifications array → object للـ API
   const arrayToSpecs = (list) => {
     if (!list?.length) return {};
     const obj = {};
@@ -1296,7 +1302,7 @@ const submitForm = async () => {
         name: t.name,
         shortDescription: t.shortDescription,
         longDescription: t.longDescription,
-        specifications: arrayToSpecs(t.specificationsList), // ✅ object للـ API
+        specifications: arrayToSpecs(t.specificationsList),
       })),
     variants: form.variants.map((v) => ({
       sku: v.sku,
@@ -1358,17 +1364,25 @@ const handleDuplicate = async (id) => {
 // ===== Related Products Search =====
 const relatedProductSearch = ref("");
 const filteredRelatedProducts = computed(() => {
+  // ✅ مراقبة locale.value هنا تجعل الـ computed يعيد الحساب فورياً عند تغيير اللغة
+  const currentLang = locale.value;
+
   if (!relatedProductSearch.value.trim()) return store.products;
   const q = relatedProductSearch.value.trim().toLowerCase();
+
   return store.products.filter((p) => {
-    const name = store.getProductName(p, "ar").toLowerCase();
+    // ✅ استدعاء دالة الاسم من الستور التي تعتمد الآن على اللغة المختارة
+    const name = store.getProductName(p).toLowerCase();
     const slug = (p.slug || "").toLowerCase();
     return name.includes(q) || slug.includes(q);
   });
 });
 
 // ===== Helpers =====
-const formatPrice = (price) => parseFloat(price || 0).toLocaleString("ar-EG");
+const formatPrice = (price) => {
+  const currentLocale = locale.value === "ar" ? "ar-EG" : "en-US";
+  return parseFloat(price || 0).toLocaleString(currentLocale);
+};
 const stockClass = (stock) => (stock <= 0 ? "out" : stock <= 5 ? "low" : "ok");
 
 const uniqueColors = (variants) => {
@@ -1383,7 +1397,7 @@ const uniqueColors = (variants) => {
     .map((v) => v.color);
 };
 
-// ===== جلب البيانات =====
+// ===== جلب البيانات الأولية =====
 onMounted(async () => {
   await Promise.all([
     store.fetchProducts(),
@@ -1395,7 +1409,6 @@ onMounted(async () => {
   ]);
 });
 </script>
-
 <style scoped>
 .products-page {
   padding: 28px;

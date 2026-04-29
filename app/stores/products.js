@@ -1,185 +1,168 @@
 import { defineStore } from "pinia";
+import { ref, computed } from "vue";
 
-export const useProductsStore = defineStore("products", {
-  state: () => ({
-    products: [],
-    meta: null,
-    filters: null,
-    currentProduct: null, // سيحتوي على هيكل البيانات الجديد
-    loading: false,
-    actionLoading: false,
-    error: null,
-  }),
+export const useProductsStore = defineStore("products", () => {
+  const api = useApi();
+  const { locale } = useI18n();
 
-  getters: {
-    getProductName:
-      (state) =>
-      (product, lang = "ar") => {
-        if (!product?.translations?.length) return product?.slug || "";
-        const t = product.translations.find((t) => t.languageCode === lang);
-        return t ? t.name : product.translations[0]?.name || "";
-      },
+  // --- State ---
+  const products = ref([]);
+  const meta = ref(null);
+  const filters = ref(null);
+  const currentProduct = ref(null);
+  const loading = ref(false);
+  const actionLoading = ref(false);
+  const error = ref(null);
 
-    getProductPrice: () => (product) => {
-      return parseFloat(product?.baseDiscountPrice || product?.basePrice || 0);
-    },
+  // --- Getters ---
 
-    getDiscountPercent: () => (product) => {
-      const base = parseFloat(product?.basePrice || 0);
-      const disc = parseFloat(product?.baseDiscountPrice || 0);
-      if (!base || !disc || disc >= base) return null;
-      return Math.round(((base - disc) / base) * 100);
-    },
-  },
+  // تفاعلي تماماً مع تغيير اللغة
+  const getProductName = computed(() => {
+    return (product) => {
+      const currentLang = locale.value;
+      if (!product?.translations?.length)
+        return product?.name || product?.slug || "";
 
-  actions: {
-    _getOpts() {
-      const nuxtApp = useNuxtApp();
-      const config = useRuntimeConfig();
-      const token =
-        useCookie("auth_token").value ||
-        nuxtApp.$pinia?.state?.value?.auth?.token;
-      return {
-        baseURL: config.public.apiBase,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      };
-    },
+      const t = product.translations.find(
+        (t) => t.languageCode === currentLang,
+      );
+      return t ? t.name : product.translations[0]?.name || "";
+    };
+  });
 
-    async fetchProducts(params = {}) {
-      this.loading = true;
-      this.error = null;
-      try {
-        const { baseURL, headers } = this._getOpts();
-        const query = new URLSearchParams(params).toString();
-        const url = query ? `/products?${query}` : "/products";
-        const response = await $fetch(url, { baseURL, headers });
-        if (response.success) {
-          // تأكد من هيكلية الرد: هل البيانات في response.data.data أم response.data؟
-          // حسب مثالك الجديد، البيانات المباشرة في response.data
-          this.products = response.data.data || response.data;
-          this.meta = response.data.meta;
-          this.filters = response.data.filters;
-        }
-      } catch (error) {
-        this.error = "فشل تحميل المنتجات";
-        console.error("fetchProducts error:", error);
-      } finally {
-        this.loading = false;
+  const getProductPrice = computed(() => (product) => {
+    return parseFloat(product?.baseDiscountPrice || product?.basePrice || 0);
+  });
+
+  const getDiscountPercent = computed(() => (product) => {
+    const base = parseFloat(product?.basePrice || 0);
+    const disc = parseFloat(product?.baseDiscountPrice || 0);
+    if (!base || !disc || disc >= base) return null;
+    return Math.round(((base - disc) / base) * 100);
+  });
+
+  // --- Actions ---
+
+  async function fetchProducts(params = {}) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await api("/products", { params });
+      if (response.success) {
+        products.value = response.data.data || response.data;
+        meta.value = response.data.meta;
+        filters.value = response.data.filters;
       }
-    },
+    } catch (err) {
+      error.value = "فشل تحميل المنتجات";
+      console.error("fetchProducts error:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
 
-    async fetchProduct(id) {
-      this.loading = true;
-      this.error = null;
-      try {
-        const { baseURL, headers } = this._getOpts();
-        const response = await $fetch(`/products/${id}`, { baseURL, headers });
-        if (response.success) {
-          // هنا نستقبل الهيكل الجديد كما هو
-          this.currentProduct = response.data;
-          return response.data;
-        }
-        return null;
-      } catch (error) {
-        this.error = "فشل تحميل المنتج";
-        console.error("fetchProduct error:", error);
-        return null;
-      } finally {
-        this.loading = false;
+  async function fetchProduct(id) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await api(`/products/${id}`);
+      if (response.success) {
+        currentProduct.value = response.data;
+        return response.data;
       }
-    },
+      return null;
+    } catch (err) {
+      error.value = "فشل تحميل المنتج";
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  }
 
-    async createProduct(payload) {
-      this.actionLoading = true;
-      try {
-        const { baseURL, headers } = this._getOpts();
-        const response = await $fetch("/products", {
-          method: "POST",
-          baseURL,
-          headers,
-          body: payload,
-        });
-        if (response.success) {
-          await this.fetchProducts();
-          return { success: true, data: response.data };
-        }
-        return { success: false };
-      } catch (error) {
-        console.error("createProduct error:", error);
-        return { success: false, error };
-      } finally {
-        this.actionLoading = false;
+  async function createProduct(payload) {
+    actionLoading.value = true;
+    try {
+      const response = await api("/products", {
+        method: "POST",
+        body: payload,
+      });
+      if (response.success) {
+        await fetchProducts();
+        return { success: true, data: response.data };
       }
-    },
+      return { success: false };
+    } catch (err) {
+      return { success: false, error: err };
+    } finally {
+      actionLoading.value = false;
+    }
+  }
 
-    async updateProduct(id, payload) {
-      this.actionLoading = true;
-      try {
-        const { baseURL, headers } = this._getOpts();
-        const response = await $fetch(`/products/${id}`, {
-          method: "PATCH", // أو PUT حسب الـ API لديك
-          baseURL,
-          headers,
-          body: payload,
-        });
-        if (response.success) {
-          await this.fetchProducts();
-          return { success: true, data: response.data };
-        }
-        return { success: false };
-      } catch (error) {
-        console.error("updateProduct error:", error);
-        return { success: false, error };
-      } finally {
-        this.actionLoading = false;
+  async function updateProduct(id, payload) {
+    actionLoading.value = true;
+    try {
+      const response = await api(`/products/${id}`, {
+        method: "PATCH",
+        body: payload,
+      });
+      if (response.success) {
+        await fetchProducts();
+        return { success: true, data: response.data };
       }
-    },
+      return { success: false };
+    } catch (err) {
+      return { success: false, error: err };
+    } finally {
+      actionLoading.value = false;
+    }
+  }
 
-    async deleteProduct(id) {
-      this.actionLoading = true;
-      try {
-        const { baseURL, headers } = this._getOpts();
-        const response = await $fetch(`/products/${id}`, {
-          method: "DELETE",
-          baseURL,
-          headers,
-        });
-        if (response.success) {
-          this.products = this.products.filter((p) => p.id !== id);
-          return { success: true };
-        }
-        return { success: false };
-      } catch (error) {
-        console.error("deleteProduct error:", error);
-        return { success: false, error };
-      } finally {
-        this.actionLoading = false;
+  async function deleteProduct(id) {
+    actionLoading.value = true;
+    try {
+      const response = await api(`/products/${id}`, { method: "DELETE" });
+      if (response.success) {
+        products.value = products.value.filter((p) => p.id !== id);
+        return { success: true };
       }
-    },
+      return { success: false };
+    } finally {
+      actionLoading.value = false;
+    }
+  }
 
-    async duplicateProduct(id) {
-      this.actionLoading = true;
-      try {
-        const { baseURL, headers } = this._getOpts();
-        const response = await $fetch(`/products/${id}/duplicate`, {
-          method: "POST",
-          baseURL,
-          headers,
-        });
-        if (response.success) {
-          await this.fetchProducts();
-          return { success: true, data: response.data };
-        }
-        return { success: false };
-      } catch (error) {
-        console.error("duplicateProduct error:", error);
-        return { success: false, error };
-      } finally {
-        this.actionLoading = false;
+  async function duplicateProduct(id) {
+    actionLoading.value = true;
+    try {
+      const response = await api(`/products/${id}/duplicate`, {
+        method: "POST",
+      });
+      if (response.success) {
+        await fetchProducts();
+        return { success: true };
       }
-    },
-  },
+      return { success: false };
+    } finally {
+      actionLoading.value = false;
+    }
+  }
+
+  return {
+    products,
+    meta,
+    filters,
+    currentProduct,
+    loading,
+    actionLoading,
+    error,
+    getProductName,
+    getProductPrice,
+    getDiscountPercent,
+    fetchProducts,
+    fetchProduct,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    duplicateProduct,
+  };
 });
