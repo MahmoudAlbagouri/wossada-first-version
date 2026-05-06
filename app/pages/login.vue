@@ -3,27 +3,29 @@
     <div class="login-card">
       <h1 class="login-title">تسجيل الدخول</h1>
 
-      <!-- عرض أخطاء السيرفر -->
       <div v-if="serverError" class="server-error-message">
         {{ serverError }}
       </div>
 
       <form @submit.prevent="onSubmit" class="login-form">
-        <!-- 
-          تم تغيير النوع إلى text والسماح بأي إدخال 
-          لأن الباك إند يتوقع 'identifier' (إيميل أو تليفون) 
-        -->
-        <BaseInput
-          v-model="email"
-          label="البريد الإلكتروني أو رقم الهاتف *"
-          id="identifier"
-          type="text"
-          placeholder="example@mail.com أو 01xxxxxxxxx"
-          icon="ph:envelope-simple"
-          :error="errors.email"
-          :disabled="isSubmitting"
-        />
+        <!-- البريد أو الهاتف مع بادئة +20 ديناميكية -->
+        <div class="identifier-input-wrapper">
+          <BaseInput
+            v-model="identifier"
+            label="البريد الإلكتروني أو رقم الهاتف *"
+            id="identifier"
+            type="text"
+            placeholder="example@mail.com أو 01xxxxxxxxx"
+            icon="ph:envelope-simple"
+            :error="errors.identifier"
+            :disabled="isSubmitting"
+            class="identifier-field"
+          />
+          <!-- عرض البادئة فقط إذا كان الحقل يحتوي على أرقام (رقم هاتف) -->
+          <span v-if="isPhoneNumber(identifier)" class="country-code">+20</span>
+        </div>
 
+        <!-- كلمة المرور -->
         <BaseInput
           v-model="password"
           label="كلمة المرور *"
@@ -38,6 +40,7 @@
           @toggle-password="togglePassword"
         />
 
+        <!-- تذكرني / نسيت كلمة المرور -->
         <div class="forgit-remember">
           <BaseCheckbox v-model="rememberMe" id="remember" label="تذكرني" />
           <div class="forgot-link">
@@ -74,12 +77,10 @@ import { useForm, useField } from "vee-validate";
 import * as yup from "yup";
 import { nextTick } from "vue";
 
-// حماية الصفحة من المسجلين مسبقاً
 definePageMeta({
   middleware: ["guest"],
 });
 
-// تحسين الـ SEO
 useSeoMeta({
   title: "تسجيل الدخول - متجر وسادة",
   description:
@@ -90,13 +91,19 @@ const authStore = useAuthStore();
 const serverError = ref("");
 const showPassword = ref(false);
 
-// مخطط التحقق من الصحة
-// نسمح بأي نص في حقل الإيميل/الهاتف لأنه قد يكون رقم تليفون
+// دالة مساعدة للتحقق مما إذا كان المدخل رقم هاتف مصري
+const isPhoneNumber = (val) => {
+  if (!val) return false;
+  // يتحقق إذا كان يبدأ بـ 01 أو +20 أو أرقام فقط
+  return /^(\+20|01)[0-9]{8,10}$/.test(val.replace(/\s/g, ""));
+};
+
+// مخطط التحقق
 const schema = yup.object({
-  email: yup
+  identifier: yup
     .string()
     .required("البريد الإلكتروني أو رقم الهاتف مطلوب")
-    .min(3, "يجب إدخال بيانات صحيحة"), // تحقق بسيط من الطول بدلاً من format email الصارم
+    .min(3, "يجب إدخال بيانات صحيحة"),
   password: yup
     .string()
     .required("كلمة المرور مطلوبة")
@@ -105,10 +112,14 @@ const schema = yup.object({
 
 const { handleSubmit, errors, isSubmitting } = useForm({
   validationSchema: schema,
-  initialValues: { email: "", password: "", rememberMe: false },
+  initialValues: {
+    identifier: "",
+    password: "",
+    rememberMe: false,
+  },
 });
 
-const { value: email } = useField("email");
+const { value: identifier } = useField("identifier");
 const { value: password } = useField("password");
 const { value: rememberMe } = useField("rememberMe");
 
@@ -118,20 +129,29 @@ const togglePassword = () => {
 
 const onSubmit = handleSubmit(async (values) => {
   serverError.value = "";
+
+  // ✅ معالجة الرقم قبل الإرسال
+  let finalIdentifier = values.identifier.trim();
+
+  // إذا كان الرقم يبدو كهاتف مصري (يبدأ بـ 01...)
+  if (/^01[0-9]{9}$/.test(finalIdentifier)) {
+    // حذف الصفر الأول وإضافة +20
+    finalIdentifier = `+20${finalIdentifier.substring(1)}`;
+  }
+  // إذا كان المستخدم أدخل +20 بالفعل، نتركه كما هو
+  // إذا كان بريداً إلكترونياً، نتركه كما هو
+
   try {
-    // إرسال البيانات للستور
-    // ملاحظة: الـ Store سيقوم بتحويل values.email إلى identifier تلقائياً
     const result = await authStore.login({
-      email: values.email,
+      email: finalIdentifier, // إرسال المعالج
       password: values.password,
     });
 
     if (result.success) {
       await nextTick();
-
       const tokenCookie = useCookie("auth_token");
+
       if (tokenCookie.value) {
-        // نجاح التوجيه للصفحة الرئيسية
         return navigateTo("/");
       } else {
         serverError.value =
@@ -186,6 +206,30 @@ const onSubmit = handleSubmit(async (values) => {
   font-size: 14px;
   border: 1px solid #fecaca;
   animation: shake 0.5s ease-in-out;
+}
+
+/* تنسيق حاوية حقل التعريف لإظهار كود الدولة */
+.identifier-input-wrapper {
+  position: relative;
+  margin-bottom: 1.5rem;
+
+  .identifier-field {
+    width: 100%;
+  }
+
+  .country-code {
+    position: absolute;
+    top: 50%;
+    /* ضبط المكان بناءً على اتجاه الصفحة RTL */
+    right: 45px; /* تعديل حسب مكان الأيقونة في BaseInput الخاص بك */
+    transform: translateY(-50%);
+    font-weight: bold;
+    color: var(--text-main);
+    pointer-events: none;
+    z-index: 10;
+    background: var(--color-green-white);
+    padding: 0 4px;
+  }
 }
 
 .forgit-remember {

@@ -1,11 +1,11 @@
-// stores/auth.ts
+// stores/auth.js
 import { defineStore } from "pinia";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     user: null,
-    token: null, // access_token
-    refreshToken: null, // refresh_token
+    token: null,
+    refreshToken: null,
     initialized: false,
     isRefreshing: false,
   }),
@@ -15,6 +15,7 @@ export const useAuthStore = defineStore("auth", {
   },
 
   actions: {
+    // ✅ تسجيل الدخول
     async login(credentials) {
       const config = useRuntimeConfig();
       try {
@@ -45,6 +46,46 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    // ✅ تسجيل حساب جديد - الدالة المفقودة
+    async register(userData) {
+      const config = useRuntimeConfig();
+      try {
+        const response = await $fetch(
+          `${config.public.apiBase}/auth/register`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: {
+              name: userData.name,
+              email: userData.email,
+              phone: userData.phone,
+              password: userData.password,
+              confirmPassword: userData.confirmPassword,
+            },
+          },
+        );
+
+        if (response.success) {
+          // حفظ البيانات وتوجيه المستخدم
+          this.saveAuthData(response.data);
+          return { success: true };
+        }
+        return {
+          success: false,
+          error: response.message || "فشل إنشاء الحساب",
+        };
+      } catch (error) {
+        console.error("Register Error:", error);
+        return {
+          success: false,
+          error: error.data?.message || "حدث خطأ أثناء التسجيل",
+        };
+      }
+    },
+
+    // ✅ حفظ بيانات المصادقة
     saveAuthData(data) {
       const tokenCookie = useCookie("auth_token", {
         maxAge: 60 * 60 * 24 * 7,
@@ -69,7 +110,7 @@ export const useAuthStore = defineStore("auth", {
       this.initialized = true;
     },
 
-    // ✅ الدالة المحدثة لتتوافق مع Backend الخاص بك
+    // ✅ تحديث التوكن
     async refreshAccessToken() {
       if (this.isRefreshing) {
         return new Promise((resolve) => {
@@ -97,7 +138,6 @@ export const useAuthStore = defineStore("auth", {
       const config = useRuntimeConfig();
 
       try {
-        // ملاحظة هامة: الباك إند يتوقع التوكن في الـ Headers وليس الـ Body
         const response = await $fetch(
           `${config.public.apiBase}/auth/refresh-token`,
           {
@@ -106,7 +146,6 @@ export const useAuthStore = defineStore("auth", {
               Authorization: `Bearer ${currentRefreshToken}`,
               "Content-Type": "application/json",
             },
-            // لا نحتاج لإرسال body لأن التوكن في الهيدر
           },
         );
 
@@ -116,7 +155,6 @@ export const useAuthStore = defineStore("auth", {
             response.data.refresh_token || currentRefreshToken;
           const newUser = response.data.user;
 
-          // تحديث الكوكيز
           const tokenCookie = useCookie("auth_token", {
             maxAge: 60 * 60 * 24 * 7,
             sameSite: "lax",
@@ -134,7 +172,6 @@ export const useAuthStore = defineStore("auth", {
           tokenCookie.value = newAccessToken;
           newRefreshCookie.value = newRefreshToken;
 
-          // تحديث الحالة
           this.token = newAccessToken;
           this.refreshToken = newRefreshToken;
           if (newUser) this.user = newUser;
@@ -147,7 +184,7 @@ export const useAuthStore = defineStore("auth", {
       } catch (error) {
         console.error("Refresh Token Failed:", error);
         this.isRefreshing = false;
-        this.clearAuth(); // خروج كامل عند الفشل
+        this.clearAuth();
         if (process.client) {
           navigateTo("/login");
         }
@@ -155,7 +192,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    // ✅ الدالة المفقودة (تمت الإضافة هنا لإصلاح خطأ 500)
+    // ✅ تهيئة حالة المستخدم
     async fetchUserProfile() {
       const tokenCookie = useCookie("auth_token");
       const refreshCookie = useCookie("refresh_token");
@@ -165,9 +202,6 @@ export const useAuthStore = defineStore("auth", {
         if (refreshCookie.value) {
           this.refreshToken = refreshCookie.value;
         }
-        // ملاحظة: بما أن الباك إند يرسل بيانات المستخدم مع اللوجن والريفresh،
-        // فلا حاجة لاستدعاء endpoint منفصل هنا إلا إذا أردت تحديث البيانات يدوياً.
-        // هذه الدالة تكفي لتهيئة الحالة من الكوكيز.
       } else {
         this.clearAuth();
         return;
@@ -175,11 +209,13 @@ export const useAuthStore = defineStore("auth", {
       this.initialized = true;
     },
 
+    // ✅ تسجيل الخروج
     logout() {
       this.clearAuth();
       navigateTo("/");
     },
 
+    // ✅ مسح بيانات المصادقة
     clearAuth() {
       this.user = null;
       this.token = null;
@@ -195,6 +231,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    // ✅ تهيئة المصادقة عند تحميل التطبيق
     async initializeAuth() {
       const tokenCookie = useCookie("auth_token");
       const refreshCookie = useCookie("refresh_token");
