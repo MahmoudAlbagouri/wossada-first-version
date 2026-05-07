@@ -11,6 +11,11 @@
 <style scoped>
 .main-content {
   position: relative;
-  padding-top: 185px;
+  padding-top: 215px;
+}
+@media (max-width: 870px) {
+  .main-content {
+    padding-top: 160px;
+  }
 }
 </style>

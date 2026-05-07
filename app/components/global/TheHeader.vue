@@ -37,8 +37,27 @@
       <div class="middle-bar">
         <div class="container">
           <div class="nav-content">
-            <!-- ❗️تمت إزالة v-if — يُعرض دائمًا ويُتحكم فيه عبر CSS -->
-            <TheDesktopActionIcons />
+            <!-- الشعار وزر القائمة -->
+            <div class="logo-section">
+              <button
+                @click="toggleMobileMenu"
+                class="menu-toggle-btn"
+                aria-label="قائمة التنقل"
+              >
+                <Icon name="ph:list" />
+              </button>
+              <NuxtLink to="/">
+                <div class="image">
+                  <img
+                    src="/images/logo.png"
+                    alt="Logo"
+                    class="logo-icon"
+                    loading="eager"
+                    fetchpriority="high"
+                  />
+                </div>
+              </NuxtLink>
+            </div>
 
             <!-- حقل البحث - شاشات كبيرة -->
             <div v-if="!isMobileValue" class="search-container">
@@ -58,28 +77,8 @@
             >
               <Icon name="ph:magnifying-glass" class="search-icon-mobile-svg" />
             </button>
-
-            <!-- الشعار وزر القائمة -->
-            <div class="logo-section">
-              <NuxtLink to="/">
-                <div class="image">
-                  <img
-                    src="/images/logo.png"
-                    alt="Logo"
-                    class="logo-icon"
-                    loading="eager"
-                    fetchpriority="high"
-                  />
-                </div>
-              </NuxtLink>
-              <button
-                @click="toggleMobileMenu"
-                class="menu-toggle-btn"
-                aria-label="قائمة التنقل"
-              >
-                <Icon name="ph:list" />
-              </button>
-            </div>
+            <!-- ❗️تمت إزالة v-if — يُعرض دائمًا ويُتحكم فيه عبر CSS -->
+            <TheDesktopActionIcons />
           </div>
         </div>
       </div>
@@ -362,7 +361,7 @@ onUnmounted(() => {
   color: var(--color-green-primary);
 }
 .logo-section img {
-  width: 250px;
+  width: 125px;
 }
 .search-overlay {
   position: fixed;
