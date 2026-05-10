@@ -60,30 +60,25 @@ const props = defineProps({
 });
 
 const wishlistStore = useWishlistStore();
-const { currentLang } = useLanguage();
 
-// التبديل بين الإضافة والحذف
 const handleToggleWishlist = async () => {
   await wishlistStore.toggleWishlist(props.product.id);
 };
 
-// اسم المنتج
+// قراءة الاسم من المصفوفة المعدلة التي أرسلناها من mapProducts
 const productName = computed(() => {
-  if (props.product.translations?.length) {
-    const trans = props.product.translations.find(
-      (t) => t.languageCode === "ar",
-    ); // أو استخدم currentLang
-    return trans?.name || props.product.translations[0]?.name;
+  if (props.product.translations?.length > 0) {
+    return props.product.translations[0]?.name || "منتج أفنان";
   }
   return props.product.name || "منتج أفنان";
 });
 
-// الصورة
+// قراءة الصورة مباشرة من الحقل المسطح
 const mainImage = computed(
   () => props.product.mainImage || "/images/products/placeholder.jpg",
 );
 
-// حساب الأسعار ديناميكياً من الـ API
+// قراءة السعر مباشرة من الحقل المسطح
 const activePrice = computed(() => {
   return parseFloat(
     props.product.baseDiscountPrice || props.product.basePrice || 0,
@@ -149,7 +144,6 @@ const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
     background-color: var(--color-green-white);
     border-radius: 10px;
     z-index: 1;
-
     span {
       color: var(--color-green-primary);
       font-size: 30px;
@@ -224,13 +218,11 @@ const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
   display: flex;
   align-items: center;
   gap: 8px;
-
   .new-price {
     font-size: 18px;
     font-weight: 700;
     color: var(--color-green-primary);
   }
-
   .old-price {
     font-size: 14px;
     color: #999;

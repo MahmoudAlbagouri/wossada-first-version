@@ -16,6 +16,7 @@
               :key="index"
               class="swiper-slide"
             >
+              <!-- تمرير كائن المنتج كاملاً كما تم تعديله في mapProducts -->
               <ProductCard :product="product" />
             </div>
           </div>
@@ -50,11 +51,8 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import ProductCard from "./ProductCard.vue";
 
-// ✅ استيراد Swiper + الوحدات المطلوبة
 import Swiper from "swiper";
 import { Autoplay, Navigation } from "swiper/modules";
-
-// ✅ استيراد CSS الضروري لوظائف Swiper
 import "swiper/css";
 import "swiper/css/autoplay";
 import "swiper/css/navigation";
@@ -76,21 +74,16 @@ onMounted(() => {
 
   if (swiperEl.value && typeof window !== "undefined") {
     swiperInstance = new Swiper(swiperEl.value, {
-      // ✅ تفعيل الوحدات
       modules: [Autoplay, Navigation],
-
       slidesPerView: 1.2,
       spaceBetween: 5,
       loop: true,
       autoplay: {
         delay: 2000,
         disableOnInteraction: false,
-        pauseOnMouseEnter: true, // اختياري: إيقاف مؤقت عند التحوّم
+        pauseOnMouseEnter: true,
       },
-      navigation: {
-        prevEl: prevBtn.value,
-        nextEl: nextBtn.value,
-      },
+      navigation: { prevEl: prevBtn.value, nextEl: nextBtn.value },
       breakpoints: {
         768: { slidesPerView: 2, spaceBetween: 24 },
         1024: { slidesPerView: 3, spaceBetween: 28 },
@@ -121,11 +114,9 @@ const slideNext = () => swiperInstance?.slideNext();
 .main-slider {
   background-color: var(--color-green-light);
 }
-
 .product-slider-wrapper {
   padding: 20px 0;
 }
-
 .slider-title {
   font-size: 20px;
   font-weight: 700;
@@ -135,7 +126,6 @@ const slideNext = () => swiperInstance?.slideNext();
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-
   .slider-title-highlight {
     background: var(--color-green-light-active);
     color: var(--color-green-darker);
@@ -145,27 +135,22 @@ const slideNext = () => swiperInstance?.slideNext();
     font-size: 16px;
   }
 }
-
 .swiper {
   position: relative;
   width: 100%;
   overflow: hidden;
   padding: 10px;
 }
-
 .swiper-wrapper {
   display: flex;
   transition-property: transform;
   box-sizing: content-box;
 }
-
 .swiper-slide {
   flex-shrink: 0;
   width: 100%;
   height: auto;
 }
-
-/* أزرار التصفّح */
 .slider-nav-btn {
   position: absolute;
   top: 50%;
@@ -182,26 +167,20 @@ const slideNext = () => swiperInstance?.slideNext();
   cursor: pointer;
   transition: all 0.3s ease;
   z-index: 10;
-
   &:hover {
     background: var(--color-green-light-hover);
     transform: translateY(-50%) scale(1.1);
   }
-
   &.prev-btn {
     left: 10px;
   }
-
   &.next-btn {
     right: 10px;
   }
 }
-
 .nav-icon {
   font-size: 24px;
 }
-
-/* Skeleton مؤقت (اختياري) */
 .swiper-skeleton {
   display: flex;
   gap: 20px;
@@ -224,8 +203,6 @@ const slideNext = () => swiperInstance?.slideNext();
     opacity: 0.6;
   }
 }
-
-/* الاستجابة */
 @media (max-width: 768px) {
   .slider-nav-btn {
     display: none;
