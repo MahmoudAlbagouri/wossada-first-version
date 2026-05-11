@@ -124,13 +124,18 @@ const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
 }
 
 .product-image {
-  height: 300px;
+  height: 250px;
+  object-fit: fill;
   overflow: hidden;
   background-color: var(--color-green-light);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+
+  @media (max-width: 500px) {
+    height: 150px;
+  }
 
   .icon-wrapper {
     position: absolute;
