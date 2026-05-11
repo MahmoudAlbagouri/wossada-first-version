@@ -117,13 +117,13 @@ const handleQtyAction = async () => {
 /* زر الإضافة */
 .add-to-cart-btn {
   width: 100%;
-  padding: 6px 12px;
+  padding: 4px 12px;
   color: var(--color-green-primary);
   background-color: var(--color-green-white);
-  border: 2px solid var(--color-green-primary);
+  border: 1.5px solid var(--color-green-primary);
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;

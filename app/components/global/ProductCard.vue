@@ -98,7 +98,7 @@ const discountPercent = computed(() => {
   );
 });
 
-const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
+const formatPrice = (price) => Number(price).toLocaleString("en-EG");
 </script>
 
 <style scoped lang="scss">
@@ -112,16 +112,18 @@ const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
   transition:
     transform 0.3s ease,
     box-shadow 0.3s ease;
-
+  @media (max-width: 500px) {
+    border-radius: 6px;
+  }
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   }
 }
 
-.card-actions {
-  padding: 0 16px 16px;
-}
+// .card-actions {
+//   padding: 0 16px 16px;
+// }
 
 .product-image {
   height: 250px;
@@ -195,7 +197,7 @@ const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
 }
 
 .product-info {
-  padding: 16px;
+  padding: 8px 12px;
   text-align: right;
   direction: rtl;
 }
@@ -210,6 +212,9 @@ const formatPrice = (price) => Number(price).toLocaleString("ar-EG");
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  @media (max-width: 500px) {
+    font-size: 12px;
+  }
 }
 
 .price-discount {
