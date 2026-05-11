@@ -229,12 +229,12 @@ const formatPrice = (price) => Number(price).toLocaleString("en-EG");
   align-items: center;
   gap: 8px;
   .new-price {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--color-green-primary);
   }
   .old-price {
-    font-size: 14px;
+    font-size: 12px;
     color: #999;
     text-decoration: line-through;
     font-weight: 500;

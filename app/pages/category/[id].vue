@@ -702,7 +702,8 @@ onMounted(() => {
     display: none;
   }
   .products-list {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
   }
 }
 </style>
