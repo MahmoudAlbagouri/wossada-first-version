@@ -113,7 +113,7 @@
             <h2 class="section-heading">ملخص الطلب</h2>
             <div class="divider"></div>
 
-            <!-- 1. Order Items from Cart (المنتجات أولاً) -->
+            <!-- 1. Order Items from Cart -->
             <div class="order-items">
               <div
                 v-for="item in cartStore.items"
@@ -143,7 +143,7 @@
               </div>
             </div>
 
-            <!-- 2. Coupon Row (الكوبون ثانياً) -->
+            <!-- 2. Coupon Row -->
             <div class="coupon-section-wrapper">
               <div class="coupon-row">
                 <input
@@ -180,7 +180,7 @@
               </div>
             </div>
 
-            <!-- 3. Totals (المجاميع ثالثاً) -->
+            <!-- 3. Totals -->
             <div class="totals-section">
               <div class="total-row">
                 <span class="total-label">المجموع الفرعي</span>
@@ -288,7 +288,7 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat("en-EG", {
     style: "currency",
     currency: "EGP",
-    minimumFractionDigits: 0, // لإزالة الكسور العشرية إذا لم تكن ضرورية
+    minimumFractionDigits: 0,
   }).format(price);
 };
 
@@ -306,8 +306,6 @@ const validateCoupon = async () => {
   try {
     const config = useRuntimeConfig();
     const token = useCookie("auth_token").value;
-
-    // تأكد من أن cartStore.total رقم صحيح قبل الإرسال
     const amountToSend = parseFloat(cartStore.total) || 0;
 
     const response = await $fetch(
@@ -349,8 +347,10 @@ const placeOrder = async () => {
       quantity: item.quantity,
     })),
     couponCode: appliedCoupon.value ? appliedCoupon.value.code : null,
-    notes: notes.value,
-    paymentMethod: paymentMethod.value, // إرسال طريقة الدفع أيضاً
+
+    // إرسال الملاحظات وطريقة الدفع (الآن الـ Backend يقبلها بفضل تعديل الـ DTO)
+    notes: notes.value && notes.value.trim() !== "" ? notes.value : null,
+    paymentMethod: paymentMethod.value,
   };
 
   const result = await ordersStore.createOrder(payload);
@@ -643,7 +643,6 @@ onMounted(async () => {
 .coupon-row {
   display: flex;
   gap: 10px;
-  /* تم إزالة row-reverse لضمان الاتجاه الصحيح */
 }
 .coupon-input {
   flex: 1;
@@ -782,7 +781,7 @@ onMounted(async () => {
   }
   .checkout-right {
     position: static;
-    order: -1; /* يظهر الملخص أولاً في الموبايل */
+    order: -1;
   }
 }
 </style>
