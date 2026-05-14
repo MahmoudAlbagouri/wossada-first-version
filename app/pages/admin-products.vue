@@ -1380,7 +1380,7 @@ const filteredRelatedProducts = computed(() => {
 
 // ===== Helpers =====
 const formatPrice = (price) => {
-  const currentLocale = locale.value === "ar" ? "ar-EG" : "en-US";
+  const currentLocale = locale.value === "ar" ? "en-EG" : "en-US";
   return parseFloat(price || 0).toLocaleString(currentLocale);
 };
 const stockClass = (stock) => (stock <= 0 ? "out" : stock <= 5 ? "low" : "ok");

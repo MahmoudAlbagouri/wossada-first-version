@@ -3,6 +3,7 @@
     <div class="container">
       <h1 class="page-title">إتمام الطلب</h1>
 
+      <!-- Loading State -->
       <div v-if="isLoadingData" class="loading-overlay">
         <div class="spinner"></div>
         <p>جاري تجهيز بيانات الدفع...</p>
@@ -112,7 +113,7 @@
             <h2 class="section-heading">ملخص الطلب</h2>
             <div class="divider"></div>
 
-            <!-- Order Items from Cart -->
+            <!-- 1. Order Items from Cart (المنتجات أولاً) -->
             <div class="order-items">
               <div
                 v-for="item in cartStore.items"
@@ -142,53 +143,71 @@
               </div>
             </div>
 
-            <!-- Coupon Row -->
-            <div class="coupon-row">
-              <button
-                class="coupon-apply-btn"
-                @click="validateCoupon"
-                :disabled="validatingCoupon"
+            <!-- 2. Coupon Row (الكوبون ثانياً) -->
+            <div class="coupon-section-wrapper">
+              <div class="coupon-row">
+                <input
+                  type="text"
+                  class="coupon-input"
+                  placeholder="أدخل كود الخصم"
+                  v-model="couponCode"
+                  :disabled="!!appliedCoupon"
+                />
+                <button
+                  class="coupon-apply-btn"
+                  @click="validateCoupon"
+                  :disabled="validatingCoupon || !!appliedCoupon"
+                >
+                  {{ validatingCoupon ? "..." : "تطبيق" }}
+                </button>
+              </div>
+
+              <!-- رسائل الحالة للكوبون -->
+              <div v-if="appliedCoupon" class="coupon-success">
+                <span class="success-icon">✓</span>
+                تم تطبيق الكوبون: <strong>{{ appliedCoupon.code }}</strong> (خصم
+                {{ formatPrice(appliedCoupon.discountAmount) }})
+                <button @click="removeCoupon" class="remove-coupon-btn">
+                  إزالة
+                </button>
+              </div>
+
+              <div
+                v-if="errorMessage && errorMessage.includes('كود')"
+                class="coupon-error"
               >
-                {{ validatingCoupon ? "..." : "تطبيق" }}
-              </button>
-              <input
-                type="text"
-                class="coupon-input"
-                placeholder="أدخل كود الخصم"
-                v-model="couponCode"
-                :disabled="!!appliedCoupon"
-              />
-            </div>
-            <div v-if="appliedCoupon" class="coupon-success">
-              تم تطبيق الكوبون: <strong>{{ appliedCoupon.code }}</strong> (خصم
-              {{ appliedCoupon.discountAmount }} ج.م)
+                {{ errorMessage }}
+              </div>
             </div>
 
-            <!-- Totals -->
+            <!-- 3. Totals (المجاميع ثالثاً) -->
             <div class="totals-section">
               <div class="total-row">
+                <span class="total-label">المجموع الفرعي</span>
                 <span class="total-amount">{{
                   formatPrice(cartStore.total)
                 }}</span>
-                <span class="total-label">المجموع الفرعي</span>
               </div>
-              <div class="divider-light"></div>
+
               <div class="total-row">
-                <span class="total-amount">{{ formatPrice(shippingFee) }}</span>
                 <span class="total-label">رسوم التوصيل</span>
+                <span class="total-amount">{{ formatPrice(shippingFee) }}</span>
               </div>
+
               <div v-if="discountAmount > 0" class="total-row discount">
-                <span class="total-amount"
+                <span class="total-label">الخصم</span>
+                <span class="total-amount text-red"
                   >- {{ formatPrice(discountAmount) }}</span
                 >
-                <span class="total-label">الخصم</span>
               </div>
+
               <div class="divider-light"></div>
+
               <div class="total-row final-total">
+                <span class="total-label final">الإجمالي النهائي</span>
                 <span class="total-amount final">{{
                   formatPrice(grandTotal)
                 }}</span>
-                <span class="total-label final">الإجمالي النهائي</span>
               </div>
             </div>
 
@@ -202,7 +221,13 @@
               <span v-else>تأكيد الطلب ودفع {{ formatPrice(grandTotal) }}</span>
             </button>
 
-            <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
+            <!-- Global Error Message -->
+            <p
+              v-if="errorMessage && !errorMessage.includes('كود')"
+              class="error-msg"
+            >
+              {{ errorMessage }}
+            </p>
           </div>
         </div>
       </div>
@@ -235,8 +260,6 @@ const validatingCoupon = ref(false);
 
 // Computed
 const shippingFee = computed(() => {
-  // منطق بسيط للشحن: إذا كان العنوان موجوداً، نحسب شحن المحافظة الافتراضي أو ثابت
-  // هنا نستخدم قيمة افتراضية للتوضيح، يجب ربطها بمنطق الشحن الحقيقي من الـ API
   const address = addressStore.addresses.find(
     (a) => a.id === selectedAddressId.value,
   );
@@ -247,12 +270,11 @@ const shippingFee = computed(() => {
 const discountAmount = computed(() => appliedCoupon.value?.discountAmount || 0);
 
 const grandTotal = computed(() => {
-  let total = cartStore.total + shippingFee.value;
-  if (appliedCoupon.value) {
-    // إذا كان الكوبون نسبة مئوية، نحسب النسبة من المجموع الفرعي فقط عادةً
-    // لكن الـ API يعيد لنا discountAmount جاهزاً في خطوة التحقق
-    total -= discountAmount.value;
-  }
+  const subtotal = parseFloat(cartStore.total) || 0;
+  const shipping = parseFloat(shippingFee.value) || 0;
+  const discount = parseFloat(discountAmount.value) || 0;
+
+  let total = subtotal + shipping - discount;
   return Math.max(0, total);
 });
 
@@ -262,11 +284,18 @@ const canPlaceOrder = computed(() => {
 
 // Methods
 const formatPrice = (price) => {
-  if (!price) return "0 ج.م";
-  return new Intl.NumberFormat("ar-EG", {
+  if (price === null || price === undefined) return "0 ج.م";
+  return new Intl.NumberFormat("en-EG", {
     style: "currency",
     currency: "EGP",
+    minimumFractionDigits: 0, // لإزالة الكسور العشرية إذا لم تكن ضرورية
   }).format(price);
+};
+
+const removeCoupon = () => {
+  appliedCoupon.value = null;
+  couponCode.value = "";
+  errorMessage.value = "";
 };
 
 const validateCoupon = async () => {
@@ -275,19 +304,14 @@ const validateCoupon = async () => {
   errorMessage.value = "";
 
   try {
-    // استخدام endpoint التحقق من الكوبون
-    // ملاحظة: الـ API يتطلب amount للتحقق من الحد الأدنى
-    const { baseURL, headers } = addressStore._getRequestOptions
-      ? addressStore._getRequestOptions()
-      : { baseURL: useRuntimeConfig().public.apiBase, headers: {} }; // Fallback simple logic
-
-    // نحتاج لاستخدام $fetch مباشرة هنا لأن useApi قد لا يكون متاحاً بنفس الطريقة في كل المكونات
-    // أو نستخدم نفس نمط الـ Stores
     const config = useRuntimeConfig();
     const token = useCookie("auth_token").value;
 
+    // تأكد من أن cartStore.total رقم صحيح قبل الإرسال
+    const amountToSend = parseFloat(cartStore.total) || 0;
+
     const response = await $fetch(
-      `${config.public.apiBase}/coupons/validate?code=${couponCode.value}&amount=${cartStore.total}`,
+      `${config.public.apiBase}/coupons/validate?code=${couponCode.value}&amount=${amountToSend}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -301,7 +325,6 @@ const validateCoupon = async () => {
         code: couponCode.value,
         discountAmount: response.data.discountAmount,
       };
-      // showToast("تم تطبيق الكوبون بنجاح", "success");
     } else {
       appliedCoupon.value = null;
       errorMessage.value = "كود الخصم غير صالح أو لا ينطبق على هذا الطلب.";
@@ -326,14 +349,14 @@ const placeOrder = async () => {
       quantity: item.quantity,
     })),
     couponCode: appliedCoupon.value ? appliedCoupon.value.code : null,
-    // notes: notes.value // إذا كان الـ API يدعم الملاحظات
+    notes: notes.value,
+    paymentMethod: paymentMethod.value, // إرسال طريقة الدفع أيضاً
   };
 
   const result = await ordersStore.createOrder(payload);
 
   if (result.success) {
-    // نجاح الطلب
-    await cartStore.clearCart(); // تفريغ السلة
+    await cartStore.clearCart();
     navigateTo(`/account/orders/${result.data.id}?success=true`);
   } else {
     errorMessage.value =
@@ -348,7 +371,6 @@ onMounted(async () => {
   isLoadingData.value = true;
   await Promise.all([cartStore.fetchCart(), addressStore.fetchAddresses()]);
 
-  // تحديد العنوان الافتراضي تلقائياً
   const defaultAddr = addressStore.defaultAddress;
   if (defaultAddr) {
     selectedAddressId.value = defaultAddr.id;
@@ -361,7 +383,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* نفس الستايل السابق مع تعديلات بسيطة */
 .checkout-page {
   min-height: 100vh;
   background-color: var(--bg-body, #fffff5);
@@ -573,7 +594,9 @@ onMounted(async () => {
   gap: 0;
   max-height: 300px;
   overflow-y: auto;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #f0ece2;
+  padding-bottom: 15px;
 }
 .order-item {
   display: flex;
@@ -582,6 +605,9 @@ onMounted(async () => {
   padding: 10px 0;
   border-bottom: 1px solid #f0ece2;
   gap: 12px;
+}
+.order-item:last-child {
+  border-bottom: none;
 }
 .item-details {
   flex: 1;
@@ -611,11 +637,13 @@ onMounted(async () => {
 }
 
 /* Coupon */
+.coupon-section-wrapper {
+  margin-bottom: 15px;
+}
 .coupon-row {
   display: flex;
   gap: 10px;
-  margin: 15px 0;
-  flex-direction: row-reverse;
+  /* تم إزالة row-reverse لضمان الاتجاه الصحيح */
 }
 .coupon-input {
   flex: 1;
@@ -623,6 +651,7 @@ onMounted(async () => {
   border: 1.5px solid #e8e0cf;
   border-radius: 8px;
   outline: none;
+  text-align: right;
 }
 .coupon-input:focus {
   border-color: var(--color-green-primary, #987226);
@@ -634,6 +663,11 @@ onMounted(async () => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  white-space: nowrap;
+}
+.coupon-apply-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 .coupon-success {
   font-size: 13px;
@@ -641,8 +675,24 @@ onMounted(async () => {
   background: #ecfdf5;
   padding: 8px;
   border-radius: 6px;
-  margin-bottom: 10px;
-  text-align: center;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.remove-coupon-btn {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.coupon-error {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 5px;
 }
 
 /* Totals */
@@ -732,7 +782,7 @@ onMounted(async () => {
   }
   .checkout-right {
     position: static;
-    order: -1;
+    order: -1; /* يظهر الملخص أولاً في الموبايل */
   }
 }
 </style>

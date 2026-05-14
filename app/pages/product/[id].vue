@@ -621,7 +621,7 @@ const setThumbsSwiper = (swiper) => {
 const toggleFavorite = () => {
   isFavorite.value = !isFavorite.value;
 };
-const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString("ar-EG");
+const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString("en-EG");
 </script>
 
 <style scoped lang="scss">

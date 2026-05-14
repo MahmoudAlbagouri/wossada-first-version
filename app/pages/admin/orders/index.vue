@@ -169,7 +169,7 @@ onMounted(() => {
 // Helpers
 const formatDate = (dateString) => {
   if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString("ar-EG", {
+  return new Date(dateString).toLocaleDateString("en-EG", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -179,7 +179,7 @@ const formatDate = (dateString) => {
 };
 
 const formatCurrency = (amount) => {
-  return new Intl.NumberFormat("ar-EG", {
+  return new Intl.NumberFormat("en-EG", {
     style: "currency",
     currency: "EGP",
   }).format(amount);
