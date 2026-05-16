@@ -1,14 +1,33 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <h1 class="login-title">تسجيل الدخول</h1>
+    <!-- خلفية تفاعلية -->
+    <div class="bg-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+      <div class="shape shape-4"></div>
+    </div>
 
-      <div v-if="serverError" class="server-error-message">
-        {{ serverError }}
+    <div class="login-card">
+      <!-- شعار / هيدر -->
+      <div class="card-header">
+        <div class="logo-icon">
+          <Icon name="ph:storefront" class="logo-svg" />
+        </div>
+        <h1 class="login-title">أهلاً بعودتك</h1>
+        <p class="login-subtitle">سجّل دخولك للمتابعة إلى متجر وسادة</p>
       </div>
 
+      <!-- خطأ من السيرفر -->
+      <Transition name="error-pop">
+        <div v-if="serverError" class="server-error-message">
+          <Icon name="ph:warning-circle" class="error-icon" />
+          {{ serverError }}
+        </div>
+      </Transition>
+
       <form @submit.prevent="onSubmit" class="login-form">
-        <!-- البريد أو الهاتف مع بادئة +20 ديناميكية -->
+        <!-- حقل المعرّف -->
         <div class="identifier-input-wrapper">
           <BaseInput
             v-model="identifier"
@@ -21,8 +40,12 @@
             :disabled="isSubmitting"
             class="identifier-field"
           />
-          <!-- عرض البادئة فقط إذا كان الحقل يحتوي على أرقام (رقم هاتف) -->
-          <span v-if="isPhoneNumber(identifier)" class="country-code">+20</span>
+          <Transition name="badge-pop">
+            <span v-if="isPhoneNumber(identifier)" class="country-code">
+              <img src="https://flagcdn.com/w20/eg.png" alt="EG" class="flag" />
+              +20
+            </span>
+          </Transition>
         </div>
 
         <!-- كلمة المرور -->
@@ -43,11 +66,10 @@
         <!-- تذكرني / نسيت كلمة المرور -->
         <div class="forgit-remember">
           <BaseCheckbox v-model="rememberMe" id="remember" label="تذكرني" />
-          <div class="forgot-link">
-            <NuxtLink to="/forgot-password" class="link-text"
-              >نسيت كلمة المرور؟</NuxtLink
-            >
-          </div>
+          <NuxtLink to="/forgot-password" class="link-text">
+            <Icon name="ph:key" class="link-icon" />
+            نسيت كلمة المرور؟
+          </NuxtLink>
         </div>
 
         <BaseButton
@@ -56,6 +78,7 @@
           variant="primary"
           :loading="isSubmitting"
         >
+          <Icon name="ph:sign-in" class="btn-icon" />
           تسجيل الدخول
         </BaseButton>
 
@@ -65,7 +88,10 @@
 
         <p class="signup-prompt">
           عميل جديد؟
-          <NuxtLink to="/register" class="link-text">أنشئ حساب</NuxtLink>
+          <NuxtLink to="/register" class="link-text highlight">
+            أنشئ حساباً الآن
+            <Icon name="ph:arrow-left" class="arrow-icon" />
+          </NuxtLink>
         </p>
       </form>
     </div>
@@ -77,9 +103,7 @@ import { useForm, useField } from "vee-validate";
 import * as yup from "yup";
 import { nextTick } from "vue";
 
-definePageMeta({
-  middleware: ["guest"],
-});
+definePageMeta({ middleware: ["guest"] });
 
 useSeoMeta({
   title: "تسجيل الدخول - متجر وسادة",
@@ -91,14 +115,11 @@ const authStore = useAuthStore();
 const serverError = ref("");
 const showPassword = ref(false);
 
-// دالة مساعدة للتحقق مما إذا كان المدخل رقم هاتف مصري
 const isPhoneNumber = (val) => {
   if (!val) return false;
-  // يتحقق إذا كان يبدأ بـ 01 أو +20 أو أرقام فقط
   return /^(\+20|01)[0-9]{8,10}$/.test(val.replace(/\s/g, ""));
 };
 
-// مخطط التحقق
 const schema = yup.object({
   identifier: yup
     .string()
@@ -112,11 +133,7 @@ const schema = yup.object({
 
 const { handleSubmit, errors, isSubmitting } = useForm({
   validationSchema: schema,
-  initialValues: {
-    identifier: "",
-    password: "",
-    rememberMe: false,
-  },
+  initialValues: { identifier: "", password: "", rememberMe: false },
 });
 
 const { value: identifier } = useField("identifier");
@@ -129,34 +146,22 @@ const togglePassword = () => {
 
 const onSubmit = handleSubmit(async (values) => {
   serverError.value = "";
-
-  // ✅ معالجة الرقم قبل الإرسال
   let finalIdentifier = values.identifier.trim();
-
-  // إذا كان الرقم يبدو كهاتف مصري (يبدأ بـ 01...)
   if (/^01[0-9]{9}$/.test(finalIdentifier)) {
-    // حذف الصفر الأول وإضافة +20
     finalIdentifier = `+20${finalIdentifier.substring(1)}`;
   }
-  // إذا كان المستخدم أدخل +20 بالفعل، نتركه كما هو
-  // إذا كان بريداً إلكترونياً، نتركه كما هو
-
   try {
     const result = await authStore.login({
-      email: finalIdentifier, // إرسال المعالج
+      email: finalIdentifier,
       password: values.password,
     });
-
     if (result.success) {
       await nextTick();
       const tokenCookie = useCookie("auth_token");
-
-      if (tokenCookie.value) {
-        return navigateTo("/");
-      } else {
+      if (tokenCookie.value) return navigateTo("/");
+      else
         serverError.value =
           "حدث خطأ في حفظ بيانات تسجيل الدخول، يرجى المحاولة مرة أخرى.";
-      }
     } else {
       serverError.value = result.error || "بيانات الدخول غير صحيحة";
     }
@@ -169,49 +174,252 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <style scoped lang="scss">
+/* ═══════════════════════════════════════════
+   الصفحة الرئيسية
+═══════════════════════════════════════════ */
 .login-page {
-  width: 700px;
-  max-width: 100%;
-  margin: 40px auto;
-  min-height: 80vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-green-white);
-  box-shadow: var(--shadow-3);
-  border-radius: 16px;
-  padding: 40px 30px;
+  padding: 24px 16px;
+  position: relative;
+  overflow: hidden;
+  // background: linear-gradient(135deg, #f0faf4 0%, #e8f5ed 50%, #f5faf7 100%);
 }
 
+/* ═══════════════════════════════════════════
+   أشكال الخلفية المتحركة
+═══════════════════════════════════════════ */
+.bg-shapes {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.shape {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.12;
+  animation: floatShape 12s ease-in-out infinite;
+}
+
+.shape-1 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, var(--color-green-primary), transparent);
+  top: -120px;
+  right: -100px;
+  animation-delay: 0s;
+}
+.shape-2 {
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, var(--color-green-primary), transparent);
+  bottom: -80px;
+  left: -60px;
+  animation-delay: -4s;
+}
+.shape-3 {
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, #68d391, transparent);
+  top: 30%;
+  left: 8%;
+  animation-delay: -8s;
+  opacity: 0.08;
+}
+.shape-4 {
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, var(--color-green-primary), transparent);
+  top: 15%;
+  right: 12%;
+  animation-delay: -2s;
+  opacity: 0.1;
+}
+
+@keyframes floatShape {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(20px, -30px) scale(1.05);
+  }
+  66% {
+    transform: translate(-15px, 20px) scale(0.97);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   البطاقة الرئيسية
+═══════════════════════════════════════════ */
 .login-card {
-  width: 80%;
-  text-align: right;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 28px;
+  padding: 48px 40px 40px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @media (max-width: 480px) {
+    padding: 36px 24px 32px;
+    border-radius: 20px;
+    margin: 0 4px;
+  }
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   هيدر البطاقة
+═══════════════════════════════════════════ */
+.card-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.logo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  background: linear-gradient(
+    135deg,
+    var(--color-green-primary) 0%,
+    var(--color-green-hover) 100%
+  );
+  border-radius: 20px;
+  margin-bottom: 20px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+  animation: logoFloat 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+    border-radius: inherit;
+  }
+}
+
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.logo-svg {
+  font-size: 32px;
+  color: white;
+  position: relative;
+  z-index: 1;
 }
 
 .login-title {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   color: var(--text-main);
-  margin-bottom: 32px;
-  text-align: center;
+  margin-bottom: 6px;
+  letter-spacing: -0.5px;
 }
 
+.login-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════
+   رسالة الخطأ
+═══════════════════════════════════════════ */
 .server-error-message {
-  background-color: #fee2e2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #fff5f5, #fee2e2);
   color: #dc2626;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  text-align: center;
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
   font-size: 14px;
   border: 1px solid #fecaca;
-  animation: shake 0.5s ease-in-out;
+  direction: rtl;
+
+  .error-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
 }
 
-/* تنسيق حاوية حقل التعريف لإظهار كود الدولة */
+.error-pop-enter-active {
+  animation: errorShake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+.error-pop-leave-active {
+  transition: all 0.3s ease;
+}
+.error-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+@keyframes errorShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-6px);
+  }
+  30% {
+    transform: translateX(6px);
+  }
+  45% {
+    transform: translateX(-4px);
+  }
+  60% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   حقل المعرّف
+═══════════════════════════════════════════ */
 .identifier-input-wrapper {
   position: relative;
-  margin-bottom: 1.5rem;
 
   .identifier-field {
     width: 100%;
@@ -219,85 +427,131 @@ const onSubmit = handleSubmit(async (values) => {
 
   .country-code {
     position: absolute;
-    top: 50%;
-    /* ضبط المكان بناءً على اتجاه الصفحة RTL */
-    right: 45px; /* تعديل حسب مكان الأيقونة في BaseInput الخاص بك */
-    transform: translateY(-50%);
-    font-weight: bold;
-    color: var(--text-main);
+    top: 46px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--color-green-primary);
     pointer-events: none;
     z-index: 10;
-    background: var(--color-green-white);
-    padding: 0 4px;
-  }
-}
-
-.forgit-remember {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-
-  .link-text {
-    color: var(--color-green-primary);
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
-
-    &:hover {
-      color: var(--color-green-dark);
+    background: var(--color-green-white, #fff);
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    .flag {
+      width: 16px;
+      border-radius: 2px;
     }
   }
 }
 
+.badge-pop-enter-active {
+  animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.badge-pop-leave-active {
+  transition: all 0.2s ease;
+}
+.badge-pop-enter-from,
+.badge-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.7);
+}
+
+/* ═══════════════════════════════════════════
+   صف تذكرني / نسيت كلمة المرور
+═══════════════════════════════════════════ */
+.forgit-remember {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════
+   الروابط
+═══════════════════════════════════════════ */
+.link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-green-primary);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.25s ease;
+
+  .link-icon,
+  .arrow-icon {
+    font-size: 14px;
+  }
+
+  &:hover {
+    color: var(--color-green-dark);
+    gap: 7px;
+  }
+
+  &.highlight {
+    font-size: 15px;
+    padding: 6px 14px;
+    background: linear-gradient(
+      135deg,
+      rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.08),
+      rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.04)
+    );
+    border-radius: 20px;
+    border: 1px solid rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.15);
+    &:hover {
+      background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.12);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════
+   الفاصل
+═══════════════════════════════════════════ */
 .divider {
   display: flex;
   align-items: center;
-  margin: 32px 0;
+  margin: 28px 0 20px;
 
   &::before,
   &::after {
     content: "";
     flex: 1;
     height: 1px;
-    background: #eee;
+    background: linear-gradient(to left, transparent, #e2e8f0, transparent);
   }
 
   .divider-text {
     padding: 0 16px;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-muted);
+    font-weight: 500;
   }
 }
 
+/* ═══════════════════════════════════════════
+   فقرة التسجيل
+═══════════════════════════════════════════ */
 .signup-prompt {
   text-align: center;
   font-size: 14px;
   color: var(--text-muted);
-  margin-top: 24px;
-
-  .link-text {
-    color: var(--color-green-primary);
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
-
-    &:hover {
-      color: var(--color-green-dark);
-    }
-  }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-5px);
-  }
-  75% {
-    transform: translateX(5px);
-  }
+/* أيقونة الزر */
+.btn-icon {
+  font-size: 18px;
 }
 </style>

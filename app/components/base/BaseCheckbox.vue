@@ -7,11 +7,17 @@
           type="checkbox"
           :checked="modelValue"
           :disabled="disabled"
-          @change="$emit('update:modelValue', $event.target.checked)"
           class="checkbox-input"
+          @change="$emit('update:modelValue', $event.target.checked)"
         />
         <span class="checkbox-custom">
-          <Icon v-if="modelValue" name="ph:check" class="checkbox-icon" />
+          <Transition name="check-anim">
+            <Icon
+              v-if="modelValue"
+              name="ph:check-bold"
+              class="checkbox-icon"
+            />
+          </Transition>
         </span>
       </div>
       <span class="checkbox-text" v-if="label">{{ label }}</span>
@@ -21,22 +27,10 @@
 
 <script setup>
 defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false,
-  },
-  label: {
-    type: String,
-    default: "",
-  },
-  id: {
-    type: String,
-    required: true,
-  },
-  disabled: {
-    type: Boolean,
-    default: false,
-  },
+  modelValue: { type: Boolean, default: false },
+  label: { type: String, default: "" },
+  id: { type: String, required: true },
+  disabled: { type: Boolean, default: false },
 });
 
 defineEmits(["update:modelValue"]);
@@ -46,17 +40,18 @@ defineEmits(["update:modelValue"]);
 .base-checkbox-wrapper {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 
   &.is-disabled {
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: not-allowed;
+    pointer-events: none;
   }
 }
 
 .checkbox-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   cursor: pointer;
   user-select: none;
@@ -64,6 +59,11 @@ defineEmits(["update:modelValue"]);
   font-size: 14px;
   color: var(--text-main);
   line-height: 1.5;
+
+  &:hover .checkbox-custom {
+    border-color: var(--color-green-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.1);
+  }
 }
 
 .checkbox-container {
@@ -71,8 +71,8 @@ defineEmits(["update:modelValue"]);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
 }
 
@@ -83,44 +83,71 @@ defineEmits(["update:modelValue"]);
   height: 100%;
   margin: 0;
   cursor: pointer;
+  z-index: 2;
+
+  &:focus + .checkbox-custom {
+    outline: 2px solid var(--color-green-primary);
+    outline-offset: 2px;
+  }
 }
 
 .checkbox-custom {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  border: 2px solid var(--border-color);
-  border-radius: 4px;
-  background: var(--color-green-white);
-  transition: all 0.3s ease;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-color, #d1d5db);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
 
   .checkbox-input:checked + & {
-    background: var(--color-green-primary);
-    border-color: var(--color-green-primary);
-  }
-
-  .checkbox-input:hover:not(:disabled) + & {
-    border-color: var(--color-green-primary);
-  }
-
-  .checkbox-input:focus + & {
-    outline: 2px solid var(--color-green-light-active);
-    outline-offset: 2px;
+    background: linear-gradient(
+      135deg,
+      var(--color-green-primary),
+      var(--color-green-hover)
+    );
+    border-color: transparent;
+    box-shadow: 0 3px 10px
+      rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.35);
+    transform: scale(1.05);
   }
 }
 
 .checkbox-icon {
-  font-size: 12px;
+  font-size: 13px;
   color: white;
   pointer-events: none;
+  display: block;
 }
 
-.checkbox-text {
-  &:empty {
-    display: none;
+/* أنيميشن علامة الصح */
+.check-anim-enter-active {
+  animation: checkBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.check-anim-leave-active {
+  transition: all 0.15s ease;
+}
+.check-anim-enter-from,
+.check-anim-leave-to {
+  opacity: 0;
+  transform: scale(0) rotate(-10deg);
+}
+
+@keyframes checkBounce {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(-10deg);
   }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.checkbox-text:empty {
+  display: none;
 }
 </style>
