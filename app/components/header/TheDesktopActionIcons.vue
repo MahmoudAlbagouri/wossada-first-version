@@ -34,18 +34,22 @@
 
 <script setup>
 import { useAuthStore } from "@/stores/auth";
+import { useCartStore } from "@/stores/cart"; // ✅ استيراد ستور السلة
+import { useWishlistStore } from "@/stores/wishlist"; // ✅ استيراد ستور المفضلة
 
-// ✅ الحل: استخدم useCookie مباشرة لتحديد حالة الدخول
+// --- Auth Logic ---
 const tokenCookie = useCookie("auth_token");
 const isLoggedIn = computed(() => !!tokenCookie.value);
-
-// لا تزال بحاجة إلى الستور لوظائف أخرى (مثل logout)
 const authStore = useAuthStore();
 
-const cartCount = ref(3);
-const wishlistCount = ref(5);
-</script>
+// --- Cart & Wishlist Logic ---
+const cartStore = useCartStore();
+const wishlistStore = useWishlistStore();
 
+// ✅ ربط الأرقام مباشرة بالـ Getters في الـ Stores
+const cartCount = computed(() => cartStore.totalQuantity);
+const wishlistCount = computed(() => wishlistStore.wishlistCount);
+</script>
 <style scoped lang="scss">
 .action-icons {
   display: flex;
