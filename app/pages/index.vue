@@ -326,7 +326,8 @@ const mapProducts = (products = []) =>
       slug: p.slug,
       mainImage: p.mainImage,
       basePrice: p.basePrice,
-      baseDiscountPrice: null,
+
+      baseDiscountPrice: p.baseDiscountPrice,
       baseStock: 50,
       translations: [
         {
@@ -347,7 +348,6 @@ const handleImgError = (e) => {
 .home-page {
   min-height: 100vh;
   direction: rtl;
-  overflow-x: hidden;
   background: #f7f4ee;
 }
 
