@@ -15,6 +15,14 @@ export default defineNuxtConfig({
     "@nuxtjs/sitemap",
     "@nuxtjs/robots",
   ],
+  app: {
+    head: {
+      htmlAttrs: {
+        dir: "rtl", // السيرفر هيبعت الصفحة rtl فوراً قبل ما الـ JS يشتغل
+        lang: "ar",
+      },
+    },
+  },
 
   i18n: {
     locales: [
