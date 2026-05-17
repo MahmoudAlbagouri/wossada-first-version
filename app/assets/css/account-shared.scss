@@ -1,0 +1,127 @@
+/* ═══════════════════════════════════════════════════════════════
+   _account-shared.scss  — مشترك بين صفحات الحساب
+   استورد هذا في كل صفحة:  @use '@/assets/scss/account-shared' as *;
+═══════════════════════════════════════════════════════════════ */
+
+/* Layout */
+.account-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  //   background: linear-gradient(135deg, #f0faf4 0%, #e8f5ed 60%, #f5faf7 100%);
+  padding: 32px 20px 40px;
+  gap: 24px;
+
+  @media (max-width: 900px) {
+    gap: 16px;
+  }
+  @media (max-width: 768px) {
+    flex-direction: column;
+    padding: 20px 12px 32px;
+  }
+}
+
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── البطاقة الرئيسية ── */
+.account-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 24px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 16px 50px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 72px 36px 40px;
+  min-height: 340px;
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @media (max-width: 600px) {
+    padding: 68px 20px 32px;
+    border-radius: 18px;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── عنوان البطاقة ── */
+.card-title {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: fit-content;
+  min-width: 200px;
+  padding: 10px 32px;
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+  text-align: center;
+  white-space: nowrap;
+  background: linear-gradient(
+    135deg,
+    var(--color-green-primary),
+    var(--color-green-hover)
+  );
+  border-radius: 50px;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+  letter-spacing: 0.3px;
+
+  @media (max-width: 480px) {
+    font-size: 17px;
+    padding: 9px 24px;
+    min-width: 160px;
+  }
+}
+
+/* ── Spinner ── */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.15);
+  border-top-color: var(--color-green-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

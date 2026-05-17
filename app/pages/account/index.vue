@@ -1,104 +1,145 @@
 <template>
-  <div class="container">
-    <div class="account-layout">
-      <!-- الشريط الجانبي (ثابت) -->
-      <aside class="sidebar">
-        <AccountSidebar />
-      </aside>
-      <!-- المحتوى الرئيسي -->
-      <main class="main-content">
-        <div class="account-card">
-          <h1 class="card-title">معلومات الحساب</h1>
+  <div class="account-layout">
+    <aside class="sidebar">
+      <AccountSidebar />
+    </aside>
 
-          <div class="form-grid">
-            <!-- رقم الجوال -->
-            <div class="form-group">
-              <label for="phone" class="form-label">* رقم الجوال</label>
-              <div class="input-wrapper">
-                <Icon name="ph:phone" class="input-icon" />
-                <input
-                  id="phone"
-                  v-model="formData.phone"
-                  type="tel"
-                  placeholder="01110022133"
-                  class="form-input"
-                  required
-                />
-              </div>
-            </div>
+    <main class="main-content">
+      <div class="account-card">
+        <h1 class="card-title">
+          <Icon name="ph:user-gear" class="title-icon" />
+          معلومات الحساب
+        </h1>
 
-            <!-- البريد الإلكتروني -->
-            <div class="form-group">
-              <label for="email" class="form-label">* البريد الإلكتروني</label>
-              <div class="input-wrapper">
-                <Icon name="ph:envelope-simple" class="input-icon" />
-                <input
-                  id="email"
-                  v-model="formData.email"
-                  type="email"
-                  placeholder="mahmodnasser42@gmail.com"
-                  class="form-input"
-                  required
-                />
-              </div>
-            </div>
+        <!-- رسالة النجاح -->
+        <Transition name="toast-pop">
+          <div v-if="savedSuccess" class="toast-success">
+            <Icon name="ph:check-circle-fill" class="toast-icon" />
+            تم حفظ التغييرات بنجاح
+          </div>
+        </Transition>
 
-            <!-- الاسم -->
-            <div class="form-group">
-              <label for="fullName" class="form-label">* الاسم</label>
-              <div class="input-wrapper">
-                <Icon name="ph:user" class="input-icon" />
-                <input
-                  id="fullName"
-                  v-model="formData.fullName"
-                  type="text"
-                  placeholder="محمد ناصر"
-                  class="form-input"
-                  required
-                />
-              </div>
-            </div>
-
-            <!-- كلمة المرور -->
-            <div class="form-group">
-              <label for="password" class="form-label">* كلمة المرور</label>
-              <div class="input-wrapper">
-                <Icon name="ph:lock" class="input-icon" />
-                <input
-                  id="password"
-                  v-model="formData.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  placeholder="••••••••"
-                  class="form-input"
-                  required
-                />
-                <button
-                  type="button"
-                  class="toggle-password-btn"
-                  @click="togglePassword"
-                  aria-label="إظهار كلمة المرور"
-                >
-                  <Icon
-                    :name="showPassword ? 'ph:eye-slash' : 'ph:eye'"
-                    class="toggle-icon"
-                  />
-                </button>
-              </div>
+        <div class="form-grid">
+          <!-- الاسم الكامل -->
+          <div class="form-group">
+            <label for="fullName" class="form-label">
+              <Icon name="ph:user" class="label-icon" /> الاسم الكامل *
+            </label>
+            <div
+              class="input-wrapper"
+              :class="{ focused: focused === 'fullName' }"
+            >
+              <Icon name="ph:user" class="input-icon" />
+              <input
+                id="fullName"
+                v-model="formData.fullName"
+                type="text"
+                placeholder="محمد ناصر"
+                class="form-input"
+                @focus="focused = 'fullName'"
+                @blur="focused = null"
+              />
             </div>
           </div>
 
-          <!-- زر حفظ التغييرات -->
+          <!-- البريد الإلكتروني -->
+          <div class="form-group">
+            <label for="email" class="form-label">
+              <Icon name="ph:envelope-simple" class="label-icon" /> البريد
+              الإلكتروني *
+            </label>
+            <div
+              class="input-wrapper"
+              :class="{ focused: focused === 'email' }"
+            >
+              <Icon name="ph:envelope-simple" class="input-icon" />
+              <input
+                id="email"
+                v-model="formData.email"
+                type="email"
+                placeholder="example@mail.com"
+                class="form-input"
+                @focus="focused = 'email'"
+                @blur="focused = null"
+              />
+            </div>
+          </div>
+
+          <!-- رقم الجوال -->
+          <div class="form-group">
+            <label for="phone" class="form-label">
+              <Icon name="ph:phone" class="label-icon" /> رقم الجوال *
+            </label>
+            <div
+              class="input-wrapper"
+              :class="{ focused: focused === 'phone' }"
+            >
+              <Icon name="ph:phone" class="input-icon" />
+              <input
+                id="phone"
+                v-model="formData.phone"
+                type="tel"
+                placeholder="01xxxxxxxxx"
+                class="form-input"
+                @focus="focused = 'phone'"
+                @blur="focused = null"
+              />
+              <span class="phone-badge">+20</span>
+            </div>
+          </div>
+
+          <!-- كلمة المرور -->
+          <div class="form-group">
+            <label for="password" class="form-label">
+              <Icon name="ph:lock" class="label-icon" /> كلمة المرور الجديدة
+            </label>
+            <div
+              class="input-wrapper"
+              :class="{ focused: focused === 'password' }"
+            >
+              <Icon name="ph:lock" class="input-icon" />
+              <input
+                id="password"
+                v-model="formData.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="اتركها فارغة إذا لم ترد التغيير"
+                class="form-input"
+                @focus="focused = 'password'"
+                @blur="focused = null"
+              />
+              <button
+                type="button"
+                class="toggle-btn"
+                @click="showPassword = !showPassword"
+                tabindex="-1"
+              >
+                <Icon
+                  :name="showPassword ? 'ph:eye-slash' : 'ph:eye'"
+                  class="toggle-icon"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- أزرار -->
+        <div class="form-actions">
+          <button class="btn-reset" type="button" @click="resetForm">
+            <Icon name="ph:arrow-counter-clockwise" />
+            إلغاء
+          </button>
           <BaseButton
             type="submit"
-            :full-width="true"
             variant="primary"
+            :loading="isSaving"
             @click="handleSave"
           >
+            <Icon name="ph:floppy-disk" class="btn-icon" />
             حفظ التغييرات
           </BaseButton>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   </div>
 </template>
 
@@ -106,139 +147,308 @@
 import { ref } from "vue";
 import BaseButton from "@/components/base/BaseButton.vue";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
-definePageMeta({
-  middleware: ["auth"],
-});
-const formData = ref({
+
+definePageMeta({ middleware: ["auth"] });
+
+const focused = ref(null);
+const showPassword = ref(false);
+const isSaving = ref(false);
+const savedSuccess = ref(false);
+
+const initialData = {
   phone: "01110022133",
   email: "mahmodnasser42@gmail.com",
   fullName: "محمد ناصر",
   password: "",
-});
+};
+const formData = ref({ ...initialData });
 
-const showPassword = ref(false);
-
-const togglePassword = () => {
-  showPassword.value = !showPassword.value;
+const resetForm = () => {
+  Object.assign(formData.value, initialData);
 };
 
-const handleSave = () => {
-  console.log("حفظ المعلومات:", formData.value);
-  // TODO: إرسال إلى API
+const handleSave = async () => {
+  isSaving.value = true;
+  await new Promise((r) => setTimeout(r, 1200));
+  isSaving.value = false;
+  savedSuccess.value = true;
+  setTimeout(() => (savedSuccess.value = false), 3000);
 };
 </script>
 
 <style scoped lang="scss">
+/* ── Layout ── */
 .account-layout {
   min-height: 100vh;
   display: flex;
-  background-color: var(--bg-body);
-  padding: 20px;
+  align-items: flex-start;
+  // background: linear-gradient(135deg, #f0faf4 0%, #e8f5ed 60%, #f5faf7 100%);
+  padding: 32px 20px 40px;
   gap: 24px;
-  padding-top: 50px;
+  direction: rtl;
   @media (max-width: 768px) {
     flex-direction: column;
+    padding: 16px 12px 32px;
   }
-}
-
-.main-content {
-  flex: 1;
-  position: relative;
-}
-
-.account-card {
-  background: var(--color-green-white);
-  border-radius: 16px;
-  box-shadow: var(--shadow-3);
-  padding: 60px 40px 40px;
-}
-
-.card-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-green-primary);
-  text-align: center;
-  position: absolute;
-  top: -20px;
-  background: var(--color-green-light);
-  width: 80%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 12px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.form-group {
-  margin-bottom: 24px;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  direction: rtl;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--color-green-white);
-}
-
-.input-icon {
-  font-size: 20px;
-  color: var(--text-muted);
-  padding: 14px;
-}
-
-.form-input {
-  flex: 1;
-  padding: 14px 16px;
-  font-size: 16px;
-  border: none;
-  outline: none;
-  background: transparent;
-  direction: rtl;
-}
-
-.toggle-password-btn {
-  background: none;
-  border: none;
-  padding: 14px;
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: color 0.3s;
-
-  &:hover {
-    color: var(--color-green-primary);
-  }
-}
-
-.toggle-icon {
-  font-size: 20px;
 }
 
 .sidebar {
   width: 280px;
   flex-shrink: 0;
-
   @media (max-width: 768px) {
     width: 100%;
   }
+}
+.main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── البطاقة ── */
+.account-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 24px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 16px 50px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 72px 40px 44px;
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  @media (max-width: 600px) {
+    padding: 68px 20px 32px;
+    border-radius: 18px;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── عنوان البطاقة ── */
+.card-title {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  font-size: 19px;
+  font-weight: 800;
+  color: white;
+  white-space: nowrap;
+  background: linear-gradient(
+    135deg,
+    var(--color-green-primary),
+    var(--color-green-hover)
+  );
+  border-radius: 50px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  .title-icon {
+    font-size: 20px;
+  }
+}
+
+/* ── Toast ── */
+.toast-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: #16a34a;
+  padding: 14px 18px;
+  border-radius: 14px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  .toast-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+}
+
+.toast-pop-enter-active {
+  animation: toastIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.toast-pop-leave-active {
+  transition: all 0.3s ease;
+}
+.toast-pop-enter-from,
+.toast-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── شبكة الفورم ── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 28px;
+  margin-bottom: 32px;
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  direction: rtl;
+  .label-icon {
+    font-size: 15px;
+  }
+}
+
+/* ── حاوية الحقل ── */
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    inset 0 1px 2px rgba(0, 0, 0, 0.02);
+
+  &.focused {
+    border-color: var(--color-green-primary);
+    box-shadow:
+      0 0 0 3px rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.05);
+    background: white;
+    .input-icon {
+      color: var(--color-green-primary);
+    }
+  }
+
+  &:hover:not(.focused) {
+    border-color: #a0aec0;
+  }
+}
+
+.input-icon {
+  font-size: 19px;
+  color: var(--text-muted);
+  padding: 13px 12px 13px 8px;
+  flex-shrink: 0;
+  transition: color 0.25s;
+}
+
+.form-input {
+  flex: 1;
+  padding: 13px 8px 13px 0;
+  font-size: 15px;
+  border: none;
+  outline: none;
+  background: transparent;
+  direction: rtl;
+  color: var(--text-main);
+  font-weight: 500;
+  &::placeholder {
+    color: #a0aec0;
+    font-weight: 400;
+  }
+}
+
+.phone-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-green-primary);
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(0, 0, 0, 0.07);
+  margin-right: 2px;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  padding: 13px 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+  &:hover {
+    color: var(--color-green-primary);
+  }
+}
+.toggle-icon {
+  font-size: 19px;
+  display: block;
+}
+
+/* ── أزرار الفورم ── */
+.form-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+  direction: rtl;
+  @media (max-width: 480px) {
+    flex-direction: column;
+  }
+}
+
+.btn-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 22px;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  &:hover {
+    border-color: #a0aec0;
+    color: var(--text-main);
+    background: white;
+  }
+  @media (max-width: 480px) {
+    justify-content: center;
+  }
+}
+
+.btn-icon {
+  font-size: 18px;
 }
 </style>

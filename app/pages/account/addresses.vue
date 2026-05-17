@@ -1,338 +1,318 @@
 <template>
-  <div class="container">
-    <div class="account-layout">
-      <!-- الشريط الجانبي -->
-      <aside class="sidebar">
-        <AccountSidebar />
-      </aside>
+  <div class="account-layout">
+    <aside class="sidebar">
+      <AccountSidebar />
+    </aside>
 
-      <!-- المحتوى الرئيسي -->
-      <main class="main-content">
-        <div class="account-card">
-          <h1 class="card-title">العناوين</h1>
+    <main class="main-content">
+      <div class="account-card">
+        <h1 class="card-title">
+          <Icon name="ph:map-pin" class="title-icon" />
+          العناوين
+        </h1>
 
-          <!-- حالة التحميل -->
-          <div v-if="addressStore.loading && !showModal" class="loading-state">
-            <div class="spinner"></div>
-            <p>جاري تحميل العناوين...</p>
-          </div>
+        <!-- تحميل -->
+        <div v-if="addressStore.loading && !showModal" class="loading-state">
+          <div class="spinner"></div>
+          <p>جاري تحميل العناوين...</p>
+        </div>
 
-          <!-- رسالة الخطأ -->
-          <div v-else-if="addressStore.error" class="error-state">
-            <p>{{ addressStore.error }}</p>
-            <button class="btn edit-btn" @click="addressStore.fetchAddresses()">
-              إعادة المحاولة
-            </button>
-          </div>
+        <!-- خطأ -->
+        <div v-else-if="addressStore.error" class="error-state">
+          <Icon name="ph:warning-circle" class="error-state-icon" />
+          <p>{{ addressStore.error }}</p>
+          <button class="retry-btn" @click="addressStore.fetchAddresses()">
+            <Icon name="ph:arrow-clockwise" /> إعادة المحاولة
+          </button>
+        </div>
 
-          <div v-else class="addresses-list">
-            <!-- بطاقة كل عنوان -->
+        <!-- العناوين -->
+        <div v-else class="addresses-list">
+          <TransitionGroup name="addr-anim" tag="div" class="addr-group">
             <div
-              v-for="address in addressStore.addresses"
+              v-for="(address, idx) in addressStore.addresses"
               :key="address.id"
               class="address-card"
               :class="{ 'is-default': address.isDefault }"
+              :style="{ animationDelay: `${idx * 60}ms` }"
             >
+              <!-- هيدر ── -->
               <div class="address-header">
-                <span class="address-type">{{ address.addressName }}</span>
+                <div class="addr-type-wrap">
+                  <span class="addr-icon-wrap">
+                    <Icon name="ph:map-pin-fill" class="addr-icon" />
+                  </span>
+                  <span class="addr-type">{{ address.addressName }}</span>
+                </div>
                 <span v-if="address.isDefault" class="default-badge">
+                  <Icon name="ph:star-fill" class="badge-star" />
                   الافتراضي
                 </span>
               </div>
 
+              <!-- التفاصيل ── -->
               <div class="address-details">
-                <div class="address-row">
-                  <span class="label">الاسم:</span>
-                  <span class="value">{{ address.fullName }}</span>
+                <div class="addr-row">
+                  <span class="addr-label"
+                    ><Icon name="ph:user" class="row-icon" /> الاسم</span
+                  >
+                  <span class="addr-value">{{ address.fullName }}</span>
                 </div>
-                <div class="address-row">
-                  <span class="label">الجوال:</span>
-                  <span class="value">{{ address.phoneNumber }}</span>
+                <div class="addr-row">
+                  <span class="addr-label"
+                    ><Icon name="ph:phone" class="row-icon" /> الجوال</span
+                  >
+                  <span class="addr-value">{{ address.phoneNumber }}</span>
                 </div>
-                <div class="address-row">
-                  <span class="label">العنوان:</span>
-                  <span class="value">{{ address.streetAddress }}</span>
+                <div class="addr-row">
+                  <span class="addr-label"
+                    ><Icon name="ph:road-horizon" class="row-icon" />
+                    العنوان</span
+                  >
+                  <span class="addr-value">{{ address.streetAddress }}</span>
                 </div>
-                <div v-if="address.landmark" class="address-row">
-                  <span class="label">العلامة:</span>
-                  <span class="value">{{ address.landmark }}</span>
+                <div v-if="address.landmark" class="addr-row">
+                  <span class="addr-label"
+                    ><Icon name="ph:flag" class="row-icon" /> العلامة</span
+                  >
+                  <span class="addr-value">{{ address.landmark }}</span>
                 </div>
-                <div class="address-row">
-                  <span class="label">المدينة:</span>
-                  <span class="value">
-                    {{ address.city?.nameAr }} -
-                    {{ address.city?.governorate?.nameAr }}
-                  </span>
+                <div class="addr-row">
+                  <span class="addr-label"
+                    ><Icon name="ph:city" class="row-icon" /> المدينة</span
+                  >
+                  <span class="addr-value"
+                    >{{ address.city?.nameAr }} —
+                    {{ address.city?.governorate?.nameAr }}</span
+                  >
                 </div>
               </div>
 
+              <!-- أزرار ── -->
               <div class="address-actions">
-                <button class="btn edit-btn" @click="openEditModal(address)">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                    />
-                    <path
-                      d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span>تعديل</span>
+                <button class="addr-btn edit" @click="openEditModal(address)">
+                  <Icon name="ph:pencil-simple" />
+                  تعديل
                 </button>
                 <button
-                  class="btn delete-btn"
+                  class="addr-btn delete"
                   @click="confirmDelete(address.id)"
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6M14 11v6" />
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                  </svg>
-                  <span>حذف</span>
+                  <Icon name="ph:trash-simple" />
+                  حذف
                 </button>
               </div>
             </div>
+          </TransitionGroup>
 
-            <!-- زر إضافة عنوان جديد -->
-            <div class="add-address-card" @click="openAddModal">
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-              <span>اضف عنوان جديد</span>
+          <!-- بطاقة الإضافة -->
+          <button class="add-card" @click="openAddModal">
+            <div class="add-card-inner">
+              <span class="add-circle">
+                <Icon name="ph:plus" class="add-icon" />
+              </span>
+              <span class="add-label">إضافة عنوان جديد</span>
             </div>
-          </div>
-        </div>
-      </main>
-    </div>
-
-    <!-- ===== Modal إضافة / تعديل ===== -->
-    <Teleport to="body">
-      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-box">
-          <div class="modal-header">
-            <h2 class="modal-title">
-              {{ isEditing ? "تعديل العنوان" : "إضافة عنوان جديد" }}
-            </h2>
-            <button class="modal-close" @click="closeModal">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          <form class="modal-form" @submit.prevent="submitForm">
-            <!-- اسم العنوان -->
-            <div class="form-group">
-              <label class="form-label">اسم العنوان</label>
-              <input
-                v-model="form.addressName"
-                type="text"
-                class="form-input"
-                placeholder="مثال: المنزل، المكتب..."
-                required
-              />
-            </div>
-
-            <!-- الاسم الكامل -->
-            <div class="form-group">
-              <label class="form-label">الاسم الكامل</label>
-              <input
-                v-model="form.fullName"
-                type="text"
-                class="form-input"
-                placeholder="اكتب اسمك الكامل"
-                required
-              />
-            </div>
-
-            <!-- رقم الهاتف -->
-            <div class="form-group">
-              <label class="form-label">رقم الهاتف</label>
-              <input
-                v-model="form.phoneNumber"
-                type="tel"
-                class="form-input"
-                placeholder="01xxxxxxxxx"
-                required
-              />
-            </div>
-
-            <!-- المحافظة -->
-            <div class="form-group">
-              <label class="form-label">المحافظة</label>
-              <select
-                v-model="selectedGovernorateId"
-                class="form-input"
-                :disabled="addressStore.loadingGov"
-                required
-                @change="form.cityId = ''"
-              >
-                <option value="" disabled>
-                  {{
-                    addressStore.loadingGov
-                      ? "جاري التحميل..."
-                      : "اختر المحافظة"
-                  }}
-                </option>
-                <option
-                  v-for="gov in addressStore.governorates"
-                  :key="gov.id"
-                  :value="gov.id"
-                >
-                  {{ gov.nameAr }}
-                </option>
-              </select>
-            </div>
-
-            <!-- المدينة / الحي -->
-            <div class="form-group">
-              <label class="form-label">المدينة / الحي</label>
-              <select
-                v-model="form.cityId"
-                class="form-input"
-                :disabled="!selectedGovernorateId || addressStore.loadingCities"
-                required
-              >
-                <option value="" disabled>
-                  {{
-                    !selectedGovernorateId
-                      ? "اختر المحافظة أولاً"
-                      : addressStore.loadingCities
-                        ? "جاري التحميل..."
-                        : "اختر المدينة"
-                  }}
-                </option>
-                <option
-                  v-for="city in filteredCities"
-                  :key="city.id"
-                  :value="city.id"
-                >
-                  {{ city.nameAr }}
-                </option>
-              </select>
-            </div>
-
-            <!-- الشارع -->
-            <div class="form-group">
-              <label class="form-label">العنوان التفصيلي</label>
-              <input
-                v-model="form.streetAddress"
-                type="text"
-                class="form-input"
-                placeholder="الشارع، رقم المبنى، الطابق..."
-                required
-              />
-            </div>
-
-            <!-- العلامة المميزة -->
-            <div class="form-group">
-              <label class="form-label"
-                >علامة مميزة <span class="optional">(اختياري)</span></label
-              >
-              <input
-                v-model="form.landmark"
-                type="text"
-                class="form-input"
-                placeholder="بجوار... أمام..."
-              />
-            </div>
-
-            <!-- الافتراضي -->
-            <div class="form-group form-check">
-              <label class="check-label">
-                <input
-                  v-model="form.isDefault"
-                  type="checkbox"
-                  class="check-input"
-                />
-                <span class="check-text">تعيين كعنوان افتراضي</span>
-              </label>
-            </div>
-
-            <!-- أزرار الحفظ -->
-            <div class="form-actions">
-              <button type="button" class="btn-cancel" @click="closeModal">
-                إلغاء
-              </button>
-              <button
-                type="submit"
-                class="btn-save"
-                :disabled="addressStore.loading"
-              >
-                <span v-if="addressStore.loading" class="btn-spinner"></span>
-                {{ isEditing ? "حفظ التعديلات" : "إضافة العنوان" }}
-              </button>
-            </div>
-          </form>
+          </button>
         </div>
       </div>
+    </main>
+
+    <!-- ══ Modal الإضافة / التعديل ══ -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+          <div class="modal-box">
+            <div class="modal-header">
+              <h2 class="modal-title">
+                <Icon
+                  :name="isEditing ? 'ph:pencil-simple' : 'ph:map-pin-plus'"
+                  class="modal-title-icon"
+                />
+                {{ isEditing ? "تعديل العنوان" : "إضافة عنوان جديد" }}
+              </h2>
+              <button
+                class="modal-close"
+                @click="closeModal"
+                aria-label="إغلاق"
+              >
+                <Icon name="ph:x" />
+              </button>
+            </div>
+
+            <form class="modal-form" @submit.prevent="submitForm">
+              <div class="modal-grid">
+                <div class="form-group">
+                  <label class="form-label">اسم العنوان</label>
+                  <input
+                    v-model="form.addressName"
+                    class="form-input"
+                    placeholder="مثال: المنزل، المكتب..."
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الاسم الكامل</label>
+                  <input
+                    v-model="form.fullName"
+                    class="form-input"
+                    placeholder="اكتب اسمك الكامل"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">رقم الهاتف</label>
+                  <input
+                    v-model="form.phoneNumber"
+                    type="tel"
+                    class="form-input"
+                    placeholder="01xxxxxxxxx"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">المحافظة</label>
+                  <select
+                    v-model="selectedGovernorateId"
+                    class="form-input"
+                    :disabled="addressStore.loadingGov"
+                    required
+                    @change="form.cityId = ''"
+                  >
+                    <option value="" disabled>
+                      {{
+                        addressStore.loadingGov
+                          ? "جاري التحميل..."
+                          : "اختر المحافظة"
+                      }}
+                    </option>
+                    <option
+                      v-for="gov in addressStore.governorates"
+                      :key="gov.id"
+                      :value="gov.id"
+                    >
+                      {{ gov.nameAr }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">المدينة / الحي</label>
+                  <select
+                    v-model="form.cityId"
+                    class="form-input"
+                    :disabled="
+                      !selectedGovernorateId || addressStore.loadingCities
+                    "
+                    required
+                  >
+                    <option value="" disabled>
+                      {{
+                        !selectedGovernorateId
+                          ? "اختر المحافظة أولاً"
+                          : addressStore.loadingCities
+                            ? "جاري التحميل..."
+                            : "اختر المدينة"
+                      }}
+                    </option>
+                    <option
+                      v-for="city in filteredCities"
+                      :key="city.id"
+                      :value="city.id"
+                    >
+                      {{ city.nameAr }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group full-span">
+                  <label class="form-label">العنوان التفصيلي</label>
+                  <input
+                    v-model="form.streetAddress"
+                    class="form-input"
+                    placeholder="الشارع، رقم المبنى، الطابق..."
+                    required
+                  />
+                </div>
+                <div class="form-group full-span">
+                  <label class="form-label"
+                    >علامة مميزة <span class="optional">(اختياري)</span></label
+                  >
+                  <input
+                    v-model="form.landmark"
+                    class="form-input"
+                    placeholder="بجوار... أمام..."
+                  />
+                </div>
+              </div>
+
+              <label class="check-label">
+                <div class="check-box" :class="{ checked: form.isDefault }">
+                  <Transition name="check-anim">
+                    <Icon
+                      v-if="form.isDefault"
+                      name="ph:check-bold"
+                      class="check-icon"
+                    />
+                  </Transition>
+                  <input
+                    v-model="form.isDefault"
+                    type="checkbox"
+                    class="check-hidden"
+                  />
+                </div>
+                <span>تعيين كعنوان افتراضي</span>
+              </label>
+
+              <div class="form-actions">
+                <button type="button" class="btn-cancel" @click="closeModal">
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  class="btn-save"
+                  :disabled="addressStore.loading"
+                >
+                  <span v-if="addressStore.loading" class="btn-spinner"></span>
+                  <Icon
+                    v-else
+                    :name="isEditing ? 'ph:floppy-disk' : 'ph:plus-circle'"
+                  />
+                  {{ isEditing ? "حفظ التعديلات" : "إضافة العنوان" }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Transition>
     </Teleport>
 
-    <!-- ===== تأكيد الحذف ===== -->
+    <!-- ══ تأكيد الحذف ══ -->
     <Teleport to="body">
-      <div
-        v-if="deleteConfirmId"
-        class="modal-overlay"
-        @click.self="deleteConfirmId = null"
-      >
-        <div class="confirm-box">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#e53e3e"
-            stroke-width="1.5"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <circle cx="12" cy="16" r="0.5" fill="#e53e3e" />
-          </svg>
-          <h3 class="confirm-title">حذف العنوان</h3>
-          <p class="confirm-text">
-            هل أنت متأكد من حذف هذا العنوان؟ لا يمكن التراجع عن هذا الإجراء.
-          </p>
-          <div class="confirm-actions">
-            <button class="btn-cancel" @click="deleteConfirmId = null">
-              إلغاء
-            </button>
-            <button class="btn-delete-confirm" @click="handleDelete">
-              حذف
-            </button>
+      <Transition name="modal-fade">
+        <div
+          v-if="deleteConfirmId"
+          class="modal-overlay"
+          @click.self="deleteConfirmId = null"
+        >
+          <div class="confirm-box">
+            <div class="confirm-icon-wrap">
+              <Icon name="ph:trash-simple" class="confirm-icon" />
+            </div>
+            <h3 class="confirm-title">حذف العنوان</h3>
+            <p class="confirm-text">
+              هل أنت متأكد من حذف هذا العنوان؟ لا يمكن التراجع عن هذا الإجراء.
+            </p>
+            <div class="confirm-actions">
+              <button class="btn-cancel" @click="deleteConfirmId = null">
+                إلغاء
+              </button>
+              <button class="btn-delete-confirm" @click="handleDelete">
+                <Icon name="ph:trash-simple" />
+                حذف
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
@@ -343,8 +323,6 @@ import AccountSidebar from "@/components/base/AccountSidebar.vue";
 import { useAddressStore } from "@/stores/address.js";
 
 const addressStore = useAddressStore();
-
-// ===== حالة الـ Modal =====
 const showModal = ref(false);
 const isEditing = ref(false);
 const editingId = ref(null);
@@ -360,17 +338,14 @@ const emptyForm = {
   cityId: "",
   isDefault: false,
 };
-
 const form = reactive({ ...emptyForm });
 
-// ===== مدن المحافظة المختارة =====
 const filteredCities = computed(() =>
   selectedGovernorateId.value
     ? addressStore.citiesByGovernorate(selectedGovernorateId.value)
     : [],
 );
 
-// ===== فتح modal الإضافة =====
 const openAddModal = () => {
   isEditing.value = false;
   editingId.value = null;
@@ -379,14 +354,10 @@ const openAddModal = () => {
   showModal.value = true;
 };
 
-// ===== فتح modal التعديل =====
 const openEditModal = (address) => {
   isEditing.value = true;
   editingId.value = address.id;
-
-  // تعيين المحافظة أولاً ثم المدينة
   selectedGovernorateId.value = address.city?.governorate?.id || "";
-
   Object.assign(form, {
     addressName: address.addressName,
     fullName: address.fullName,
@@ -396,7 +367,6 @@ const openEditModal = (address) => {
     cityId: address.city?.id || "",
     isDefault: address.isDefault,
   });
-
   showModal.value = true;
 };
 
@@ -404,7 +374,6 @@ const closeModal = () => {
   showModal.value = false;
 };
 
-// ===== إرسال الفورم =====
 const submitForm = async () => {
   const payload = {
     addressName: form.addressName,
@@ -415,31 +384,21 @@ const submitForm = async () => {
     cityId: form.cityId,
     isDefault: form.isDefault,
   };
-
-  let result;
-  if (isEditing.value) {
-    result = await addressStore.updateAddress(editingId.value, payload);
-  } else {
-    result = await addressStore.createAddress(payload);
-  }
-
-  if (result.success) {
-    closeModal();
-  }
+  const result = isEditing.value
+    ? await addressStore.updateAddress(editingId.value, payload)
+    : await addressStore.createAddress(payload);
+  if (result.success) closeModal();
 };
 
-// ===== حذف =====
 const confirmDelete = (id) => {
   deleteConfirmId.value = id;
 };
-
 const handleDelete = async () => {
   if (!deleteConfirmId.value) return;
   await addressStore.deleteAddress(deleteConfirmId.value);
   deleteConfirmId.value = null;
 };
 
-// ===== تحميل البيانات عند فتح الصفحة =====
 onMounted(async () => {
   await Promise.all([
     addressStore.fetchAddresses(),
@@ -449,140 +408,282 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .account-layout {
   min-height: 100vh;
   display: flex;
-  background-color: var(--bg-body);
-  padding: 20px;
+  align-items: flex-start;
+  // background: linear-gradient(135deg, #f0faf4 0%, #e8f5ed 60%, #f5faf7 100%);
+  padding: 32px 20px 40px;
   gap: 24px;
-  padding-top: 50px;
   direction: rtl;
-}
-
-@media (max-width: 768px) {
-  .account-layout {
+  @media (max-width: 768px) {
     flex-direction: column;
+    padding: 16px 12px 32px;
   }
 }
 
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
 .main-content {
   flex: 1;
+  min-width: 0;
 }
 
-/* ====== بطاقة الصفحة ====== */
 .account-card {
-  background: var(--color-green-white, #fdfdfb);
-  border-radius: 16px;
-  box-shadow: var(--shadow-3, 0px 5px 10px #00000033);
-  padding: 60px 40px 40px;
   position: relative;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 24px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 16px 50px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 72px 36px 40px;
+  animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  @media (max-width: 600px) {
+    padding: 68px 16px 28px;
+    border-radius: 18px;
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-green-primary, #987226);
-  text-align: center;
   position: absolute;
   top: -20px;
-  background: var(--color-green-light, #f5f1e9);
-  width: 80%;
   left: 50%;
   transform: translateX(-50%);
-  border-radius: 12px;
-  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  font-size: 19px;
+  font-weight: 800;
+  color: white;
+  white-space: nowrap;
+  background: linear-gradient(
+    135deg,
+    var(--color-green-primary),
+    var(--color-green-hover)
+  );
+  border-radius: 50px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  .title-icon {
+    font-size: 20px;
+  }
 }
 
-/* ====== حالة التحميل ====== */
-.loading-state,
-.error-state {
+/* ── Loading / Error ── */
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 40px 0;
-  color: #888;
+  justify-content: center;
+  padding: 60px 0;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 14px;
 }
-
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #f0ead8;
-  border-top-color: var(--color-green-primary, #987226);
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.15);
+  border-top-color: var(--color-green-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* ====== قائمة العناوين ====== */
-.addresses-list {
+.error-state {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  color: #dc2626;
+  .error-state-icon {
+    font-size: 40px;
+    opacity: 0.5;
+  }
+}
+
+.retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(239, 68, 68, 0.12);
+  }
+}
+
+/* ── Grid العناوين ── */
+.addr-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .address-card {
-  background: var(--color-green-white, #fdfdfb);
-  border: 1.5px solid var(--border-color, #eee);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-1, 0px 2px 4px #00000033);
-  transition: border-color 0.2s;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(0, 0, 0, 0.06);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s;
+  animation: addrIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  &.is-default {
+    border-color: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.25);
+    background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.03);
+  }
+  &:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09);
+    transform: translateY(-2px);
+  }
 }
 
-.address-card.is-default {
-  border-color: var(--color-green-primary, #987226);
-  background: #fdf9f0;
+@keyframes addrIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.addr-anim-enter-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.addr-anim-leave-active {
+  transition: all 0.25s ease;
+}
+.addr-anim-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.addr-anim-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
 }
 
 .address-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
 
-.address-type {
+.addr-type-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.addr-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.1);
+}
+.addr-icon {
   font-size: 16px;
+  color: var(--color-green-primary);
+}
+
+.addr-type {
+  font-size: 15px;
   font-weight: 700;
-  color: var(--color-green-primary, #987226);
+  color: var(--text-main);
 }
 
 .default-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  background: var(--color-green-primary, #987226);
-  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--color-green-primary),
+    var(--color-green-hover)
+  );
+  color: white;
   padding: 3px 10px;
   border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  .badge-star {
+    font-size: 10px;
+  }
 }
 
 .address-details {
   margin-bottom: 16px;
-}
-
-.address-row {
   display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.addr-row {
+  display: flex;
+  align-items: flex-start;
   gap: 8px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: var(--text-main, #1a1a1a);
+  font-size: 13px;
+  direction: rtl;
 }
-
-.label {
-  color: var(--text-muted, #666);
+.addr-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
   font-weight: 500;
-  white-space: nowrap;
+  min-width: 68px;
+  flex-shrink: 0;
+  .row-icon {
+    font-size: 13px;
+  }
 }
-
-.value {
+.addr-value {
+  color: var(--text-main);
   font-weight: 600;
+  flex: 1;
 }
 
 .address-actions {
@@ -590,70 +691,101 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.btn {
+.addr-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  font-family: "Cairo", sans-serif;
   transition: all 0.2s;
+
+  &.edit {
+    background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.08);
+    color: var(--color-green-primary);
+    border: 1px solid rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.15);
+    &:hover {
+      background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.14);
+    }
+  }
+  &.delete {
+    background: rgba(239, 68, 68, 0.07);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    &:hover {
+      background: rgba(239, 68, 68, 0.12);
+    }
+  }
 }
 
-.edit-btn {
-  background: var(--color-green-light, #f5f1e9);
-  color: var(--color-green-primary, #987226);
-  border: 1px solid var(--color-green-light-active, #dfd3bc);
-}
-.edit-btn:hover {
-  background: var(--color-green-light-hover, #f0eade);
+/* ── بطاقة الإضافة ── */
+.add-card {
+  background: transparent;
+  border: 2px dashed rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.25);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.25s;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    border-color: var(--color-green-primary);
+    background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.04);
+  }
+  &:hover .add-circle {
+    background: linear-gradient(
+      135deg,
+      var(--color-green-primary),
+      var(--color-green-hover)
+    );
+  }
+  &:hover .add-circle .add-icon {
+    color: white;
+  }
+  &:hover .add-label {
+    color: var(--color-green-primary);
+  }
 }
 
-.delete-btn {
-  background: #fde8e8;
-  color: #c53030;
-  border: 1px solid #fbb4b4;
-}
-.delete-btn:hover {
-  background: #fdd5d5;
-}
-
-/* ====== بطاقة الإضافة ====== */
-.add-address-card {
+.add-card-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 12px;
-  height: 160px;
-  background: var(--color-green-white, #fdfdfb);
-  border: 2px dashed #c8b98a;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #aaa;
 }
 
-.add-address-card:hover {
-  background: var(--color-green-light, #f5f1e9);
-  border-color: var(--color-green-primary, #987226);
-  color: var(--color-green-primary, #987226);
+.add-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
 }
-
-.add-address-card span {
-  font-size: 16px;
+.add-icon {
+  font-size: 24px;
+  color: var(--color-green-primary);
+  transition: color 0.25s;
+}
+.add-label {
+  font-size: 15px;
   font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.25s;
 }
 
-/* ====== Modal ====== */
+/* ══ Modal ══ */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -662,94 +794,149 @@ onMounted(async () => {
   direction: rtl;
 }
 
+.modal-fade-enter-active {
+  animation: overlayIn 0.3s ease;
+}
+.modal-fade-leave-active {
+  animation: overlayOut 0.25s ease;
+}
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlayOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .modal-box {
-  background: #fff;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
   width: 100%;
-  max-width: 540px;
+  max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: boxIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes boxIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1.5px solid #f0ece2;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .modal-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-green-primary, #987226);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--color-green-primary);
+  .modal-title-icon {
+    font-size: 20px;
+  }
 }
 
 .modal-close {
-  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.05);
   border: none;
   cursor: pointer;
-  color: #888;
-  padding: 4px;
-  border-radius: 6px;
-  transition: color 0.2s;
-}
-.modal-close:hover {
-  color: #333;
+  color: var(--text-muted);
+  font-size: 18px;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(0, 0, 0, 0.09);
+    color: var(--text-main);
+  }
 }
 
 .modal-form {
   padding: 20px 24px 24px;
 }
 
-.form-group {
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
   margin-bottom: 16px;
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
 }
 
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .form-label {
-  display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #444;
-  margin-bottom: 6px;
+  color: var(--text-muted);
 }
-
 .optional {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
-  color: #999;
+  color: #aaa;
 }
 
 .form-input {
   width: 100%;
-  padding: 10px 14px;
-  border: 1.5px solid #e8e0cf;
-  border-radius: 10px;
-  font-family: "Cairo", sans-serif;
+  padding: 11px 14px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
   font-size: 14px;
-  color: #333;
-  background: #faf8f3;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.9);
   outline: none;
-  text-align: right;
+  direction: rtl;
   transition: border-color 0.2s;
   appearance: none;
-}
-
-.form-input:focus {
-  border-color: var(--color-green-primary, #987226);
-}
-.form-input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  &:focus {
+    border-color: var(--color-green-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.1);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 /* Checkbox */
-.form-check {
-  display: flex;
-  align-items: center;
-}
-
 .check-label {
   display: flex;
   align-items: center;
@@ -757,95 +944,163 @@ onMounted(async () => {
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: #444;
+  color: var(--text-main);
+  margin-bottom: 20px;
 }
-
-.check-input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--color-green-primary, #987226);
+.check-box {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: white;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
+  &.checked {
+    background: linear-gradient(
+      135deg,
+      var(--color-green-primary),
+      var(--color-green-hover)
+    );
+    border-color: transparent;
+    box-shadow: 0 3px 8px rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.3);
+  }
+}
+.check-hidden {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
   cursor: pointer;
+}
+.check-icon {
+  font-size: 13px;
+  color: white;
+  display: block;
+}
+.check-anim-enter-active {
+  animation: checkBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.check-anim-leave-active {
+  transition: all 0.15s ease;
+}
+.check-anim-enter-from,
+.check-anim-leave-to {
+  opacity: 0;
+  transform: scale(0);
+}
+@keyframes checkBounce {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* أزرار الفورم */
 .form-actions {
   display: flex;
   gap: 12px;
-  margin-top: 24px;
 }
 
 .btn-cancel {
   flex: 1;
   padding: 12px;
-  background: #f5f5f5;
-  color: #555;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 10px;
-  font-family: "Cairo", sans-serif;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-muted);
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-cancel:hover {
-  background: #eee;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(0, 0, 0, 0.07);
+  }
 }
 
 .btn-save {
   flex: 2;
   padding: 12px;
-  background: var(--color-green-primary, #987226);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-family: "Cairo", sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 0.2s;
-}
-.btn-save:hover {
-  background: var(--color-green-hover, #896722);
-}
-.btn-save:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  background: linear-gradient(
+    135deg,
+    var(--color-green-primary),
+    var(--color-green-hover)
+  );
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: all 0.25s;
+  &:hover:not(:disabled) {
+    filter: brightness(1.05);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  }
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
 }
 
 .btn-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-/* ====== Confirm Box ====== */
+/* ══ Confirm Box ══ */
 .confirm-box {
-  background: #fff;
-  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
   padding: 36px 32px;
   max-width: 380px;
   width: 100%;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: boxIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  margin: 0 auto 20px;
+  .confirm-icon {
+    font-size: 32px;
+    color: #dc2626;
+  }
 }
 
 .confirm-title {
   font-size: 20px;
-  font-weight: 700;
-  color: #333;
-  margin: 14px 0 8px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 10px;
 }
-
 .confirm-text {
   font-size: 14px;
-  color: #666;
+  color: var(--text-muted);
   line-height: 1.7;
   margin-bottom: 24px;
 }
@@ -858,17 +1113,20 @@ onMounted(async () => {
 .btn-delete-confirm {
   flex: 1;
   padding: 12px;
-  background: #e53e3e;
-  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #dc2626;
+  color: white;
   border: none;
-  border-radius: 10px;
-  font-family: "Cairo", sans-serif;
+  border-radius: 12px;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-delete-confirm:hover {
-  background: #c53030;
+  transition: all 0.2s;
+  &:hover {
+    background: #b91c1c;
+  }
 }
 </style>
