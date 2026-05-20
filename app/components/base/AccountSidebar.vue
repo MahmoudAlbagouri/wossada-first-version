@@ -68,16 +68,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { ref, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router"; // إضافة useRouter للتوجيه بعد الخروج
 import { storeToRefs } from "pinia";
-import { useUsersStore } from "@/stores/users"; // استيراد الستور المحدّث
+import { useUsersStore } from "@/stores/users";
+import { useAuthStore } from "@/stores/auth"; // استيراد ستور المصادقة
 import BaseConfirmationModal from "@/components/base/BaseConfirmationModal.vue";
 
 const route = useRoute();
+const router = useRouter();
 const usersStore = useUsersStore();
-// استخدام storeToRefs للحفاظ على الـ Reactivity عند التفكيك
-const { currentUser, loading } = storeToRefs(usersStore);
+const authStore = useAuthStore(); // تهيئة ستور المصادقة
+
+const { currentUser } = storeToRefs(usersStore);
 
 const showLogoutModal = ref(false);
 const whatsappNumber = "201000000000";
@@ -99,11 +102,15 @@ const navItems = [
 const isActive = (path) =>
   route.path === path || (path !== "/account" && route.path.startsWith(path));
 
+// دالة تسجيل الخروج الصحيحة
 const handleLogout = async () => {
-  await usersStore.updateProfile; // مجرد مثال، عادة نستخدم authStore.logout
-  // هنا نفترض أن لديك authStore منفصل أو دالة logout في usersStore
-  // await authStore.logout();
-  console.log("Logging out...");
+  try {
+    await authStore.logout(); // استدعاء دالة الخروج من authStore
+    // توجيه المستخدم للصفحة الرئيسية أو صفحة الدخول بعد الخروج
+    router.push("/");
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
 };
 
 // جلب البيانات عند تحميل السايدبار إذا لم تكن موجودة
