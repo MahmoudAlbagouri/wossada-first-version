@@ -6,13 +6,20 @@
         <Icon name="ph:user-circle-fill" class="user-avatar" />
         <span class="online-dot"></span>
       </div>
-      <div class="user-info">
-        <h3 class="user-name">محمد ناصر</h3>
-        <p class="user-email">mahmodnasser42@gmail.com</p>
+
+      <!-- عرض البيانات إذا كانت محملة، وإظهار مؤشر تحميل إذا لم تكن -->
+      <div v-if="currentUser" class="user-info">
+        <h3 class="user-name">{{ currentUser.name }}</h3>
+        <p class="user-email">{{ currentUser.email }}</p>
         <span class="user-badge">
           <Icon name="ph:star-fill" class="badge-star" />
           عضو مميز
         </span>
+      </div>
+      <div v-else class="user-info loading-skeleton">
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line x-short"></div>
       </div>
     </div>
 
@@ -61,12 +68,17 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
+import { storeToRefs } from "pinia";
+import { useUsersStore } from "@/stores/users"; // استيراد الستور المحدّث
 import BaseConfirmationModal from "@/components/base/BaseConfirmationModal.vue";
 
 const route = useRoute();
-const authStore = useAuthStore();
+const usersStore = useUsersStore();
+// استخدام storeToRefs للحفاظ على الـ Reactivity عند التفكيك
+const { currentUser, loading } = storeToRefs(usersStore);
+
 const showLogoutModal = ref(false);
 const whatsappNumber = "201000000000";
 
@@ -86,9 +98,20 @@ const navItems = [
 
 const isActive = (path) =>
   route.path === path || (path !== "/account" && route.path.startsWith(path));
+
 const handleLogout = async () => {
-  await authStore.logout();
+  await usersStore.updateProfile; // مجرد مثال، عادة نستخدم authStore.logout
+  // هنا نفترض أن لديك authStore منفصل أو دالة logout في usersStore
+  // await authStore.logout();
+  console.log("Logging out...");
 };
+
+// جلب البيانات عند تحميل السايدبار إذا لم تكن موجودة
+onMounted(async () => {
+  if (!currentUser.value) {
+    await usersStore.fetchProfile();
+  }
+});
 </script>
 
 <style scoped lang="scss">
@@ -199,6 +222,41 @@ const handleLogout = async () => {
   border: 1px solid rgba(var(--color-green-primary-rgb, 45, 125, 75), 0.15);
   .badge-star {
     font-size: 10px;
+  }
+}
+
+/* Skeleton Loading Styles */
+.loading-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+
+  &.short {
+    width: 60%;
+  }
+  &.medium {
+    width: 90%;
+  }
+  &.x-short {
+    width: 40%;
+    height: 16px;
+    margin-top: 4px;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 

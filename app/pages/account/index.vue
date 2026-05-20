@@ -19,7 +19,20 @@
           </div>
         </Transition>
 
-        <div class="form-grid">
+        <!-- رسالة الخطأ -->
+        <Transition name="toast-pop">
+          <div v-if="storeError" class="toast-error">
+            <Icon name="ph:warning-circle-fill" class="toast-icon" />
+            {{ storeError }}
+          </div>
+        </Transition>
+
+        <div v-if="isLoading" class="loading-state">
+          <Icon name="svg-spinners:ring-resize" class="spin-icon" />
+          جاري تحميل البيانات...
+        </div>
+
+        <div v-else class="form-grid">
           <!-- الاسم الكامل -->
           <div class="form-group">
             <label for="fullName" class="form-label">
@@ -32,9 +45,9 @@
               <Icon name="ph:user" class="input-icon" />
               <input
                 id="fullName"
-                v-model="formData.fullName"
+                v-model="formData.name"
                 type="text"
-                placeholder="محمد ناصر"
+                placeholder="الاسم الكامل"
                 class="form-input"
                 @focus="focused = 'fullName'"
                 @blur="focused = null"
@@ -59,10 +72,12 @@
                 type="email"
                 placeholder="example@mail.com"
                 class="form-input"
+                disabled
                 @focus="focused = 'email'"
                 @blur="focused = null"
               />
             </div>
+            <small class="hint-text">لا يمكن تغيير البريد الإلكتروني</small>
           </div>
 
           <!-- رقم الجوال -->
@@ -81,6 +96,7 @@
                 type="tel"
                 placeholder="01xxxxxxxxx"
                 class="form-input"
+                disabled
                 @focus="focused = 'phone'"
                 @blur="focused = null"
               />
@@ -124,7 +140,12 @@
 
         <!-- أزرار -->
         <div class="form-actions">
-          <button class="btn-reset" type="button" @click="resetForm">
+          <button
+            class="btn-reset"
+            type="button"
+            @click="resetForm"
+            :disabled="isSaving"
+          >
             <Icon name="ph:arrow-counter-clockwise" />
             إلغاء
           </button>
@@ -144,45 +165,97 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, reactive, onMounted } from "vue";
+import { storeToRefs } from "pinia";
+import { useUsersStore } from "@/stores/users"; // تأكد من المسار الصحيح
 import BaseButton from "@/components/base/BaseButton.vue";
 import AccountSidebar from "@/components/base/AccountSidebar.vue";
 
 definePageMeta({ middleware: ["auth"] });
 
+const usersStore = useUsersStore();
+const {
+  currentUser,
+  saving: isSaving,
+  error: storeError,
+  loading: isLoading,
+} = storeToRefs(usersStore);
+
 const focused = ref(null);
 const showPassword = ref(false);
-const isSaving = ref(false);
 const savedSuccess = ref(false);
 
-const initialData = {
-  phone: "01110022133",
-  email: "mahmodnasser42@gmail.com",
-  fullName: "محمد ناصر",
+// حالة الفورم
+const formData = reactive({
+  name: "",
+  email: "",
+  phone: "",
   password: "",
+});
+
+// جلب البيانات عند تحميل الصفحة
+onMounted(async () => {
+  await usersStore.fetchProfile();
+  if (currentUser.value) {
+    fillForm(currentUser.value);
+  }
+});
+
+const fillForm = (user) => {
+  formData.name = user.name || "";
+  formData.email = user.email || "";
+  // إزالة +20 إذا كانت موجودة مسبقاً لتجنب التكرار عند العرض، أو التعامل معها في الـ UI
+  formData.phone = user.phone ? user.phone.replace("+20", "") : "";
+  formData.password = ""; // لا نعرض كلمة المرور
 };
-const formData = ref({ ...initialData });
 
 const resetForm = () => {
-  Object.assign(formData.value, initialData);
+  if (currentUser.value) {
+    fillForm(currentUser.value);
+  }
+  savedSuccess.value = false;
 };
 
 const handleSave = async () => {
-  isSaving.value = true;
-  await new Promise((r) => setTimeout(r, 1200));
-  isSaving.value = false;
-  savedSuccess.value = true;
-  setTimeout(() => (savedSuccess.value = false), 3000);
+  // التحقق البسيط
+  if (!formData.name || !formData.phone) {
+    notify?.error?.("يرجى ملء الحقول المطلوبة");
+    return;
+  }
+
+  const payload = {
+    name: formData.name,
+    phone: formData.phone.startsWith("0")
+      ? `+20${formData.phone.substring(1)}`
+      : `+20${formData.phone}`, // تنسيق الرقم
+    email: formData.email,
+  };
+
+  // إضافة كلمة المرور فقط إذا تم إدخالها
+  if (formData.password && formData.password.length > 0) {
+    payload.password = formData.password;
+  }
+
+  const result = await usersStore.updateProfile(payload);
+
+  if (result.success) {
+    savedSuccess.value = true;
+    formData.password = ""; // مسح حقل الباسورد بعد الحفظ الناجح
+    setTimeout(() => (savedSuccess.value = false), 3000);
+    notify?.success?.("تم تحديث البيانات بنجاح");
+  } else {
+    notify?.error?.(result.error || "حدث خطأ أثناء الحفظ");
+  }
 };
 </script>
 
 <style scoped lang="scss">
-/* ── Layout ── */
+/* نفس الـ CSS السابق مع إضافة بسيطة للـ Error Toast و Loading */
+
 .account-layout {
   min-height: 100vh;
   display: flex;
   align-items: flex-start;
-  // background: linear-gradient(135deg, #f0faf4 0%, #e8f5ed 60%, #f5faf7 100%);
   padding: 32px 20px 40px;
   gap: 24px;
   direction: rtl;
@@ -204,7 +277,6 @@ const handleSave = async () => {
   min-width: 0;
 }
 
-/* ── البطاقة ── */
 .account-card {
   position: relative;
   background: rgba(255, 255, 255, 0.82);
@@ -235,7 +307,6 @@ const handleSave = async () => {
   }
 }
 
-/* ── عنوان البطاقة ── */
 .card-title {
   position: absolute;
   top: -20px;
@@ -261,23 +332,34 @@ const handleSave = async () => {
   }
 }
 
-/* ── Toast ── */
-.toast-success {
+.toast-success,
+.toast-error {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-  color: #16a34a;
   padding: 14px 18px;
   border-radius: 14px;
   margin-bottom: 28px;
   font-size: 14px;
   font-weight: 600;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  border: 1px solid transparent;
+
   .toast-icon {
     font-size: 20px;
     flex-shrink: 0;
   }
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.2);
 }
 
 .toast-pop-enter-active {
@@ -291,6 +373,7 @@ const handleSave = async () => {
   opacity: 0;
   transform: translateY(-10px) scale(0.95);
 }
+
 @keyframes toastIn {
   from {
     opacity: 0;
@@ -302,7 +385,27 @@ const handleSave = async () => {
   }
 }
 
-/* ── شبكة الفورم ── */
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 40px;
+  color: var(--text-muted);
+  .spin-icon {
+    font-size: 24px;
+    animation: spin 1s linear infinite;
+  }
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -333,7 +436,12 @@ const handleSave = async () => {
   }
 }
 
-/* ── حاوية الحقل ── */
+.hint-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+
 .input-wrapper {
   display: flex;
   align-items: center;
@@ -384,6 +492,12 @@ const handleSave = async () => {
     color: #a0aec0;
     font-weight: 400;
   }
+
+  &:disabled {
+    background-color: rgba(0, 0, 0, 0.02);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
 }
 
 .phone-badge {
@@ -414,7 +528,6 @@ const handleSave = async () => {
   display: block;
 }
 
-/* ── أزرار الفورم ── */
 .form-actions {
   display: flex;
   justify-content: flex-start;
@@ -438,10 +551,14 @@ const handleSave = async () => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s;
-  &:hover {
+  &:hover:not(:disabled) {
     border-color: #a0aec0;
     color: var(--text-main);
     background: white;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
   @media (max-width: 480px) {
     justify-content: center;
