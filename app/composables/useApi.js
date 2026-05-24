@@ -1,27 +1,18 @@
-// app/composables/useApi.js
-
 export const useApi = () => {
-  // 1. استحضار الأدوات الأساسية من نكست والمخزن
   const config = useRuntimeConfig();
   const authStore = useAuthStore();
   const { locale } = useI18n();
 
   const baseURL = config.public.apiBase;
 
-  /**
-   * دالة بناء الـ Headers
-   * تقوم بإضافة الـ Token واللغة الحالية في كل طلب
-   */
+  // ✅ بناء الهيدرز بشكل ديناميكي مع دمج التوكن واللغة الحالية
   const buildHeaders = (extra = {}) => {
-    // جلب التوكن من الكوكيز أو المخزن
     const token = useCookie("auth_token").value || authStore.token;
 
     const headers = {
       "Content-Type": "application/json",
       Accept: "application/json",
-      // ✅ إرسال اللغة كـ Header ليقرأه NestJS عبر HeaderResolver(['lang'])
       lang: locale.value,
-      // إرسال اللغة أيضاً في الهيدر القياسي لضمان عمل AcceptLanguageResolver
       "Accept-Language": locale.value,
       ...extra,
     };
@@ -33,48 +24,64 @@ export const useApi = () => {
     return headers;
   };
 
-  /**
-   * إنشاء نسخة مخصصة من $fetch
-   */
   const apiFetch = $fetch.create({
     baseURL,
 
-    // تنفيذ عمليات قبل إرسال الطلب
+    // 1️⃣ يتم تشغيل هذا قبل خروج أي طلب من المتصفح
     onRequest({ options }) {
       options.headers = buildHeaders(options.headers || {});
     },
 
-    // معالجة الأخطاء (خاصة خطأ 401 للتوكن المنتهي)
+    // 2️⃣ حبل النجاة: اعتراض أخطاء الاستجابة والتعامل مع انتهاء الجلسة
     async onResponseError({ response, request, options }) {
+      // إذا كان الخطأ ليس 401 (غير مصرح)، لا تتدخل واترك الخطأ يمر للمكون
       if (response.status !== 401) return;
 
       const requestUrl = String(request);
 
-      // إذا كان الخطأ من رابط تجديد التوكن نفسه، سجل خروج فوراً
-      if (requestUrl.includes("/auth/refresh")) {
+      // 🛡️ الفحص أ: إذا فشل طلب التجديد نفسه، فكل شيء انتهى. سجل خروج فوراً
+      if (requestUrl.includes("/auth/refresh-token")) {
         authStore.clearAuth();
         if (process.client) navigateTo("/login");
         return;
       }
 
-      // محاولة تجديد التوكن تلقائياً (Silent Refresh)
+      // 🛡️ الفحص ب: الحماية من الحلقة اللانهائية (Infinite Loop)
+      // إذا كان الطلب يحمل وسم _retry مسبقاً وفشل مرة أخرى، توقف وسجل خروج
+      if (options._retry) {
+        authStore.clearAuth();
+        if (process.client) navigateTo("/login");
+        return;
+      }
+
+      // 🏷️ ضع وسم على الطلب الحالي ليعرف النظام أنه قيد محاولة الإصلاح
+      options._retry = true;
+
+      console.warn(
+        `⚠️ انتهت صلاحية الجلسة أثناء طلب [${requestUrl}]. جاري التجديد وإعادة المحاولة صامتاً...`,
+      );
+
+      // 🔄 استدعاء دالة التجديد الصامت وانتظار النتيجة (تعود بـ true أو false)
       const refreshed = await authStore.refreshAccessToken();
 
       if (refreshed) {
-        // إعادة محاولة الطلب الأصلي بالتوكن الجديد والهيدرز المحدثة
-        return await $fetch(requestUrl, {
-          ...options,
-          baseURL,
-          headers: buildHeaders(),
-        });
+        console.log(
+          "✅ تم تجديد التوكن بنجاح! جاري إعادة إرسال الطلب الأصلي...",
+        );
+
+        // 3️⃣ تحديث الهيدرز بالتوكن الجديد تماماً قبل إعادة المحاولة
+        options.headers = buildHeaders(options.headers || {});
+
+        // 🔥 السحر هنا: إعادة تنفيذ نفس الطلب الأصلي (بنفس الـ Payload والبيانات)
+        // وإرجاع النتيجة مباشرة إلى الـ Component وكأن شيئاً لم يكن!
+        return apiFetch(request, options);
       } else {
-        // فشل التجديد -> مسح البيانات والتوجه لصفحة تسجيل الدخول
+        // إذا فشل التجديد (مثلاً الـ refresh token انتهت صلاحيته هو الآخر)
         authStore.clearAuth();
         if (process.client) navigateTo("/login");
       }
     },
   });
 
-  // المخرج النهائي: دالة نظيفة ترسل الطلب للرابط مباشرة مع الهيدرز المجهزة
   return (url, options = {}) => apiFetch(url, options);
 };

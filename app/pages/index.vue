@@ -326,7 +326,6 @@ const mapProducts = (products = []) =>
       slug: p.slug,
       mainImage: p.mainImage,
       basePrice: p.basePrice,
-
       baseDiscountPrice: p.baseDiscountPrice,
       baseStock: 50,
       translations: [
