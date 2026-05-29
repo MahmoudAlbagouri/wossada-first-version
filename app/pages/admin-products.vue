@@ -24,6 +24,257 @@
       </button>
     </div>
 
+    <!-- ===== Search & Filters Bar ===== -->
+    <div class="search-filters-bar">
+      <!-- Search Input -->
+      <div class="search-input-wrap">
+        <svg
+          class="search-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          v-model="searchInput"
+          type="text"
+          class="search-input"
+          placeholder="ابحث باسم المنتج أو الـ slug..."
+          @keyup.enter="doSearch"
+          @input="onSearchInput"
+        />
+        <button v-if="searchInput" class="search-clear" @click="clearSearch">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Filter Toggles -->
+      <button
+        class="btn-filters-toggle"
+        :class="{ active: showFilters }"
+        @click="showFilters = !showFilters"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="4" y1="6" x2="20" y2="6" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+          <line x1="11" y1="18" x2="13" y2="18" />
+        </svg>
+        فلترة
+        <span v-if="store.hasActiveFilters" class="filter-active-dot"></span>
+      </button>
+
+      <!-- Reset -->
+      <button
+        v-if="store.hasActiveFilters"
+        class="btn-reset-filters"
+        @click="resetAll"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+        مسح الكل
+      </button>
+    </div>
+
+    <!-- ===== Filters Panel ===== -->
+    <Transition name="filters-slide">
+      <div v-if="showFilters" class="filters-panel">
+        <div class="filters-grid">
+          <!-- Category -->
+          <div class="filter-group">
+            <label class="filter-label">القسم</label>
+            <select
+              v-model="localFilters.categoryId"
+              class="filter-select"
+              @change="applyFiltersNow"
+            >
+              <option value="">كل الأقسام</option>
+              <template
+                v-for="parent in categoryStore.topLevelCategories"
+                :key="parent.id"
+              >
+                <option :value="parent.id">
+                  {{ categoryStore.getCategoryName(parent, "ar") }}
+                </option>
+                <option
+                  v-for="child in parent.children"
+                  :key="child.id"
+                  :value="child.id"
+                >
+                  　└ {{ categoryStore.getCategoryName(child, "ar") }}
+                </option>
+              </template>
+            </select>
+          </div>
+
+          <!-- Brand -->
+          <div class="filter-group">
+            <label class="filter-label">الماركة</label>
+            <select
+              v-model="localFilters.brandId"
+              class="filter-select"
+              @change="applyFiltersNow"
+            >
+              <option value="">كل الماركات</option>
+              <option
+                v-for="brand in brandsStore.brands"
+                :key="brand.id"
+                :value="brand.id"
+              >
+                {{ brandsStore.getBrandName(brand, "ar") }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Color -->
+          <div class="filter-group">
+            <label class="filter-label">اللون</label>
+            <select
+              v-model="localFilters.colorId"
+              class="filter-select"
+              @change="applyFiltersNow"
+            >
+              <option value="">كل الألوان</option>
+              <option
+                v-for="color in colorsStore.colors"
+                :key="color.id"
+                :value="color.id"
+              >
+                {{ colorsStore.getColorName(color, "ar") }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Size -->
+          <div class="filter-group">
+            <label class="filter-label">الحجم</label>
+            <select
+              v-model="localFilters.sizeId"
+              class="filter-select"
+              @change="applyFiltersNow"
+            >
+              <option value="">كل الأحجام</option>
+              <option
+                v-for="size in sizesStore.sizes"
+                :key="size.id"
+                :value="size.id"
+              >
+                {{ sizesStore.getSizeName(size, "ar") }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Price Range -->
+          <div class="filter-group price-range-group">
+            <label class="filter-label">نطاق السعر (ج.م)</label>
+            <div class="price-inputs">
+              <div class="price-input-wrap">
+                <input
+                  v-model.number="localFilters.minPrice"
+                  type="number"
+                  class="filter-input"
+                  placeholder="من"
+                  min="0"
+                  @change="applyFiltersNow"
+                />
+                <span class="price-label">من</span>
+              </div>
+              <span class="price-separator">—</span>
+              <div class="price-input-wrap">
+                <input
+                  v-model.number="localFilters.maxPrice"
+                  type="number"
+                  class="filter-input"
+                  placeholder="إلى"
+                  min="0"
+                  @change="applyFiltersNow"
+                />
+                <span class="price-label">إلى</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Limit -->
+          <div class="filter-group">
+            <label class="filter-label">عدد النتائج</label>
+            <select
+              v-model.number="localFilters.limit"
+              class="filter-select"
+              @change="applyFiltersNow"
+            >
+              <option :value="10">10 لكل صفحة</option>
+              <option :value="20">20 لكل صفحة</option>
+              <option :value="50">50 لكل صفحة</option>
+              <option :value="100">100 لكل صفحة</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Active Filter Tags -->
+        <div v-if="store.hasActiveFilters" class="active-filter-tags">
+          <span class="tags-label">الفلاتر النشطة:</span>
+          <span v-if="store.activeFilters.searchTerm" class="filter-tag">
+            🔍 "{{ store.activeFilters.searchTerm }}"
+            <button @click="clearSingleFilter('searchTerm')">✕</button>
+          </span>
+          <span v-if="store.activeFilters.categoryId" class="filter-tag">
+            📁 {{ getCategoryNameById(store.activeFilters.categoryId) }}
+            <button @click="clearSingleFilter('categoryId')">✕</button>
+          </span>
+          <span v-if="store.activeFilters.brandId" class="filter-tag">
+            🏷️ {{ getBrandNameById(store.activeFilters.brandId) }}
+            <button @click="clearSingleFilter('brandId')">✕</button>
+          </span>
+          <span v-if="store.activeFilters.colorId" class="filter-tag">
+            🎨 {{ getColorNameById(store.activeFilters.colorId) }}
+            <button @click="clearSingleFilter('colorId')">✕</button>
+          </span>
+          <span v-if="store.activeFilters.sizeId" class="filter-tag">
+            📐 {{ getSizeNameById(store.activeFilters.sizeId) }}
+            <button @click="clearSingleFilter('sizeId')">✕</button>
+          </span>
+          <span
+            v-if="store.activeFilters.minPrice || store.activeFilters.maxPrice"
+            class="filter-tag"
+          >
+            💰 {{ store.activeFilters.minPrice || "0" }} —
+            {{ store.activeFilters.maxPrice || "∞" }} ج.م
+            <button @click="clearPriceFilter">✕</button>
+          </span>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ===== Loading ===== -->
     <div v-if="store.loading" class="loading-grid">
       <div v-for="i in 6" :key="i" class="skeleton-card"></div>
@@ -39,7 +290,25 @@
 
     <!-- ===== Products Table ===== -->
     <div v-else class="table-wrapper">
-      <table class="products-table">
+      <!-- No Results -->
+      <div v-if="!store.products.length" class="no-results-state">
+        <svg
+          width="56"
+          height="56"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#d4b87a"
+          stroke-width="1"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <p class="no-results-title">لا توجد نتائج</p>
+        <p class="no-results-sub">جرب تعديل الفلاتر أو مسحها</p>
+        <button class="btn-retry" @click="resetAll">مسح الفلاتر</button>
+      </div>
+
+      <table v-else class="products-table">
         <thead>
           <tr>
             <th>المنتج</th>
@@ -192,22 +461,35 @@
               </div>
             </td>
           </tr>
-          <tr v-if="!store.products.length">
-            <td colspan="7" class="empty-row">لا توجد منتجات بعد</td>
-          </tr>
         </tbody>
       </table>
 
       <!-- Pagination -->
       <div v-if="store.meta && store.meta.totalPages > 1" class="pagination">
         <button
-          v-for="page in store.meta.totalPages"
-          :key="page"
-          class="page-btn"
-          :class="{ active: page === store.meta.currentPage }"
-          @click="store.fetchProducts({ page })"
+          class="page-btn page-nav"
+          :disabled="store.meta.currentPage === 1"
+          @click="goToPage(store.meta.currentPage - 1)"
         >
-          {{ page }}
+          →
+        </button>
+        <template v-for="page in paginationPages" :key="page">
+          <span v-if="page === '...'" class="page-dots">…</span>
+          <button
+            v-else
+            class="page-btn"
+            :class="{ active: page === store.meta.currentPage }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        </template>
+        <button
+          class="page-btn page-nav"
+          :disabled="store.meta.currentPage === store.meta.totalPages"
+          @click="goToPage(store.meta.currentPage + 1)"
+        >
+          ←
         </button>
       </div>
     </div>
@@ -216,7 +498,6 @@
     <Teleport to="body">
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
         <div class="modal-box">
-          <!-- Modal Header -->
           <div class="modal-header">
             <h2 class="modal-title">
               {{ isEditing ? "تعديل المنتج" : "إضافة منتج جديد" }}
@@ -228,8 +509,6 @@
               <button class="modal-close" @click="closeModal">✕</button>
             </div>
           </div>
-
-          <!-- Tabs Bar -->
           <div class="tabs-bar">
             <button
               v-for="(tab, idx) in tabs"
@@ -248,12 +527,8 @@
               >
             </button>
           </div>
-
-          <!-- Modal Body -->
           <div class="modal-body">
-            <!-- ══════════════════════════════════════════
-                 TAB 0 — الأسعار والمخزون
-            ══════════════════════════════════════════ -->
+            <!-- TAB 0 — الأسعار والمخزون -->
             <div v-show="activeTab === 0" class="tab-pane">
               <div class="price-highlight-box">
                 <div class="form-grid-3">
@@ -298,7 +573,6 @@
                   </div>
                 </div>
               </div>
-
               <fieldset class="form-section">
                 <legend>الشحن</legend>
                 <div class="form-grid-2">
@@ -329,7 +603,6 @@
                   </div>
                 </div>
               </fieldset>
-
               <fieldset class="form-section">
                 <legend>الأبعاد والوزن</legend>
                 <div class="form-grid-3">
@@ -374,9 +647,7 @@
               </fieldset>
             </div>
 
-            <!-- ══════════════════════════════════════════
-                 TAB 1 — المعلومات والترجمات
-            ══════════════════════════════════════════ -->
+            <!-- TAB 1 — المعلومات والترجمات -->
             <div v-show="activeTab === 1" class="tab-pane">
               <fieldset class="form-section">
                 <legend>معلومات أساسية</legend>
@@ -412,7 +683,6 @@
                   </div>
                 </div>
               </fieldset>
-
               <fieldset class="form-section">
                 <legend>الأقسام (Categories) <span class="req">*</span></legend>
                 <div class="categories-tree">
@@ -462,8 +732,6 @@
                   </p>
                 </div>
               </fieldset>
-
-              <!-- Language Tabs -->
               <fieldset class="form-section">
                 <legend>الترجمات والمواصفات</legend>
                 <div class="lang-tabs">
@@ -478,8 +746,6 @@
                     {{ lang }}
                   </button>
                 </div>
-
-                <!-- Arabic -->
                 <div v-show="activeLang === 0" class="lang-block">
                   <div class="form-group">
                     <label class="form-label"
@@ -549,8 +815,6 @@
                     </button>
                   </div>
                 </div>
-
-                <!-- English -->
                 <div v-show="activeLang === 1" class="lang-block">
                   <div class="form-group">
                     <label class="form-label">Product Name</label>
@@ -624,15 +888,12 @@
               </fieldset>
             </div>
 
-            <!-- ══════════════════════════════════════════
-                 TAB 2 — الصور
-            ══════════════════════════════════════════ -->
+            <!-- TAB 2 — الصور -->
             <div v-show="activeTab === 2" class="tab-pane">
               <fieldset class="form-section">
                 <legend>الصورة الرئيسية <span class="req">*</span></legend>
                 <ImageUploader v-model="form.mainImage" folder="products" />
               </fieldset>
-
               <fieldset class="form-section">
                 <legend>
                   الصور الإضافية
@@ -673,9 +934,7 @@
               </fieldset>
             </div>
 
-            <!-- ══════════════════════════════════════════
-                 TAB 3 — المتغيرات
-            ══════════════════════════════════════════ -->
+            <!-- TAB 3 — المتغيرات -->
             <div v-show="activeTab === 3" class="tab-pane">
               <div class="variants-header">
                 <p class="variants-hint">
@@ -689,7 +948,6 @@
                   + إضافة variant
                 </button>
               </div>
-
               <div
                 v-for="(v, idx) in form.variants"
                 :key="idx"
@@ -822,15 +1080,12 @@
                   ></textarea>
                 </div>
               </div>
-
               <p v-if="!form.variants.length" class="empty-variants">
                 لا توجد variants بعد. اضغط + إضافة.
               </p>
             </div>
 
-            <!-- ══════════════════════════════════════════
-                 TAB 4 — المرتبطات
-            ══════════════════════════════════════════ -->
+            <!-- TAB 4 — المرتبطات -->
             <div v-show="activeTab === 4" class="tab-pane">
               <fieldset class="form-section">
                 <legend>أقسام ذات صلة</legend>
@@ -876,7 +1131,6 @@
                   </template>
                 </div>
               </fieldset>
-
               <fieldset class="form-section">
                 <legend>منتجات ذات صلة</legend>
                 <p class="form-hint">منتجات محددة ستظهر في "منتجات مشابهة"</p>
@@ -929,11 +1183,8 @@
               </fieldset>
             </div>
 
-            <!-- ══════════════════════════════════════════
-                 TAB 5 — SEO
-            ══════════════════════════════════════════ -->
+            <!-- TAB 5 — SEO -->
             <div v-show="activeTab === 5" class="tab-pane">
-              <!-- Google Preview -->
               <div class="seo-preview-box">
                 <p class="seo-preview-label">معاينة نتائج جوجل</p>
                 <div class="seo-preview-url">
@@ -954,7 +1205,6 @@
                   }}
                 </div>
               </div>
-
               <fieldset class="form-section">
                 <legend>إعدادات SEO</legend>
                 <div class="form-group">
@@ -968,9 +1218,8 @@
                   <span
                     class="char-count"
                     :class="{ warn: (form.metaTitle || '').length > 60 }"
+                    >{{ (form.metaTitle || "").length }} / 60</span
                   >
-                    {{ (form.metaTitle || "").length }} / 60
-                  </span>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Meta Description</label>
@@ -983,16 +1232,13 @@
                   <span
                     class="char-count"
                     :class="{ warn: (form.metaDescription || '').length > 160 }"
+                    >{{ (form.metaDescription || "").length }} / 160</span
                   >
-                    {{ (form.metaDescription || "").length }} / 160
-                  </span>
                 </div>
               </fieldset>
             </div>
           </div>
-          <!-- end modal-body -->
 
-          <!-- Modal Footer with Tab Navigation -->
           <div class="modal-footer">
             <div class="footer-step-info">
               <span class="step-dots">
@@ -1042,7 +1288,6 @@
             </div>
           </div>
         </div>
-        <!-- end modal-box -->
       </div>
     </Teleport>
 
@@ -1076,59 +1321,40 @@
             </div>
             <div class="view-details">
               <div class="detail-row">
-                <span class="detail-label">Slug:</span>
-                <span class="detail-val" dir="ltr">{{
+                <span class="detail-label">Slug:</span
+                ><span class="detail-val" dir="ltr">{{
                   viewingProduct.slug
                 }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">السعر:</span>
-                <span class="detail-val"
+                <span class="detail-label">السعر:</span
+                ><span class="detail-val"
                   >{{ formatPrice(viewingProduct.basePrice) }} ج.م</span
                 >
               </div>
               <div class="detail-row" v-if="viewingProduct.baseDiscountPrice">
-                <span class="detail-label">بعد الخصم:</span>
-                <span class="detail-val discount"
+                <span class="detail-label">بعد الخصم:</span
+                ><span class="detail-val discount"
                   >{{ formatPrice(viewingProduct.baseDiscountPrice) }} ج.م</span
                 >
               </div>
               <div class="detail-row">
-                <span class="detail-label">المخزون:</span>
-                <span class="detail-val">{{ viewingProduct.baseStock }}</span>
+                <span class="detail-label">المخزون:</span
+                ><span class="detail-val">{{ viewingProduct.baseStock }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">الشحن:</span>
-                <span class="detail-val">{{
+                <span class="detail-label">الشحن:</span
+                ><span class="detail-val">{{
                   viewingProduct.isFreeShipping
                     ? "مجاني"
                     : `${viewingProduct.fixedShippingPrice} ج.م`
                 }}</span>
               </div>
               <div class="detail-row" v-if="viewingProduct.brand">
-                <span class="detail-label">الماركة:</span>
-                <span class="detail-val">{{
+                <span class="detail-label">الماركة:</span
+                ><span class="detail-val">{{
                   brandsStore.getBrandName(viewingProduct.brand, "ar")
                 }}</span>
-              </div>
-              <div
-                class="detail-row"
-                v-if="
-                  viewingProduct.translations?.[0]?.specifications &&
-                  Object.keys(viewingProduct.translations[0].specifications)
-                    .length
-                "
-              >
-                <span class="detail-label">المواصفات:</span>
-                <ul class="specs-view-list">
-                  <li
-                    v-for="(val, key) in viewingProduct.translations[0]
-                      .specifications"
-                    :key="key"
-                  >
-                    <strong>{{ key }}:</strong> {{ val }}
-                  </li>
-                </ul>
               </div>
               <div class="detail-row" v-if="viewingProduct.variants?.length">
                 <span class="detail-label">Variants:</span>
@@ -1144,12 +1370,13 @@
                       class="v-color"
                       :title="v.color?.hexCode"
                     ></span>
-                    <span class="variant-info">
-                      {{ v.sku }} — {{ formatPrice(v.price) }} ج.م
-                      <span v-if="v.size" class="variant-size-label"
+                    <span class="variant-info"
+                      >{{ v.sku }} — {{ formatPrice(v.price) }} ج.م<span
+                        v-if="v.size"
+                        class="variant-size-label"
                         >| {{ v.size?.type }}</span
-                      >
-                    </span>
+                      ></span
+                    >
                   </div>
                 </div>
               </div>
@@ -1195,8 +1422,8 @@
               :disabled="store.actionLoading"
               @click="handleDelete"
             >
-              <span v-if="store.actionLoading" class="btn-spinner dark"></span>
-              حذف
+              <span v-if="store.actionLoading" class="btn-spinner dark"></span
+              >حذف
             </button>
           </div>
         </div>
@@ -1231,12 +1458,123 @@ const brandsStore = useBrandsStore();
 const materialsStore = useMaterialsStore();
 const categoryStore = useCategoryStore();
 
-watch(locale, async (newLang) => {
-  console.log("🔄 تحديث قائمة المنتجات للغة:", newLang);
+watch(locale, async () => {
   await store.fetchProducts();
 });
 
-// ===== Tabs Config =====
+// ===== Search & Filters =====
+const searchInput = ref("");
+const showFilters = ref(false);
+let searchDebounce = null;
+
+const localFilters = reactive({
+  categoryId: "",
+  brandId: "",
+  colorId: "",
+  sizeId: "",
+  minPrice: "",
+  maxPrice: "",
+  limit: 20,
+});
+
+const onSearchInput = () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    store.applyFilters({ searchTerm: searchInput.value });
+  }, 500);
+};
+
+const doSearch = () => {
+  clearTimeout(searchDebounce);
+  store.applyFilters({ searchTerm: searchInput.value });
+};
+
+const clearSearch = () => {
+  searchInput.value = "";
+  store.applyFilters({ searchTerm: "" });
+};
+
+const applyFiltersNow = () => {
+  store.applyFilters({ ...localFilters });
+};
+
+const resetAll = () => {
+  searchInput.value = "";
+  Object.assign(localFilters, {
+    categoryId: "",
+    brandId: "",
+    colorId: "",
+    sizeId: "",
+    minPrice: "",
+    maxPrice: "",
+    limit: 20,
+  });
+  store.resetFilters();
+};
+
+const clearSingleFilter = (key) => {
+  if (key === "searchTerm") {
+    searchInput.value = "";
+  }
+  if (key in localFilters) localFilters[key] = "";
+  store.applyFilters({ [key]: "" });
+};
+
+const clearPriceFilter = () => {
+  localFilters.minPrice = "";
+  localFilters.maxPrice = "";
+  store.applyFilters({ minPrice: "", maxPrice: "" });
+};
+
+// Helper: get names for active filter tags
+const getCategoryNameById = (id) => {
+  for (const cat of categoryStore.categories) {
+    if (cat.id === id) return categoryStore.getCategoryName(cat, "ar");
+    const child = cat.children?.find((c) => c.id === id);
+    if (child) return categoryStore.getCategoryName(child, "ar");
+  }
+  return id;
+};
+const getBrandNameById = (id) => {
+  const b = brandsStore.brands?.find((b) => b.id === id);
+  return b ? brandsStore.getBrandName(b, "ar") : id;
+};
+const getColorNameById = (id) => {
+  const c = colorsStore.colors?.find((c) => c.id === id);
+  return c ? colorsStore.getColorName(c, "ar") : id;
+};
+const getSizeNameById = (id) => {
+  const s = sizesStore.sizes?.find((s) => s.id === id);
+  return s ? sizesStore.getSizeName(s, "ar") : id;
+};
+
+// ===== Pagination =====
+const goToPage = (page) => {
+  store.fetchProducts({ page });
+};
+
+const paginationPages = computed(() => {
+  if (!store.meta) return [];
+  const { currentPage, totalPages } = store.meta;
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push("...");
+    for (
+      let i = Math.max(2, currentPage - 1);
+      i <= Math.min(totalPages - 1, currentPage + 1);
+      i++
+    )
+      pages.push(i);
+    if (currentPage < totalPages - 2) pages.push("...");
+    pages.push(totalPages);
+  }
+  return pages;
+});
+
+// ===== Tabs =====
 const tabs = [
   { label: "الأسعار والمخزون", icon: "💰" },
   { label: "المعلومات", icon: "📝" },
@@ -1248,11 +1586,9 @@ const tabs = [
 const activeTab = ref(0);
 const activeLang = ref(0);
 const completedTabs = ref([]);
-
 const switchTab = (idx) => {
-  if (!completedTabs.value.includes(activeTab.value)) {
+  if (!completedTabs.value.includes(activeTab.value))
     completedTabs.value.push(activeTab.value);
-  }
   activeTab.value = idx;
 };
 
@@ -1310,16 +1646,12 @@ const defaultForm = () => ({
   relatedProductsIds: [],
   relatedCategoryIds: [],
 });
-
 const form = reactive(defaultForm());
 
-// ===== Specifications =====
 const addSpec = (li) =>
   form.translations[li].specificationsList.push({ key: "", value: "" });
 const removeSpec = (li, si) =>
   form.translations[li].specificationsList.splice(si, 1);
-
-// ===== Variants & Gallery =====
 const addVariant = () =>
   form.variants.push({
     sku: "",
@@ -1334,7 +1666,6 @@ const addVariant = () =>
 const removeVariant = (idx) => form.variants.splice(idx, 1);
 const addGalleryImage = () => form.defaultGallery.push("");
 
-// ===== Open Modals =====
 const openCreateModal = () => {
   isEditing.value = false;
   editingId.value = null;
@@ -1351,17 +1682,14 @@ const openEditModal = async (product) => {
   activeTab.value = 0;
   activeLang.value = 0;
   completedTabs.value = [];
-
   const full = await store.fetchProduct(product.id);
   if (!full) return;
-
   const arTrans = full.translations?.find((t) => t.languageCode === "ar") || {};
   const enTrans = full.translations?.find((t) => t.languageCode === "en") || {};
   const specsToArray = (obj) =>
     obj && typeof obj === "object"
       ? Object.entries(obj).map(([key, value]) => ({ key, value }))
       : [];
-
   Object.assign(form, {
     basePrice: parseFloat(full.basePrice) || null,
     baseDiscountPrice: parseFloat(full.baseDiscountPrice) || null,
@@ -1423,7 +1751,6 @@ const viewProduct = (product) => {
   viewingProduct.value = product;
 };
 
-// ===== Submit =====
 const submitForm = async () => {
   const arrayToSpecs = (list) => {
     if (!list?.length) return {};
@@ -1479,7 +1806,6 @@ const submitForm = async () => {
   const result = isEditing.value
     ? await store.updateProduct(editingId.value, payload)
     : await store.createProduct(payload);
-
   if (result.success) {
     closeModal();
     showToast(
@@ -1490,7 +1816,6 @@ const submitForm = async () => {
   }
 };
 
-// ===== Delete =====
 const confirmDelete = (product) => {
   deleteTarget.value = product;
 };
@@ -1504,7 +1829,6 @@ const handleDelete = async () => {
   deleteTarget.value = null;
 };
 
-// ===== Duplicate =====
 const handleDuplicate = async (id) => {
   const result = await store.duplicateProduct(id);
   showToast(
@@ -1513,10 +1837,8 @@ const handleDuplicate = async (id) => {
   );
 };
 
-// ===== Related Products Search =====
 const relatedProductSearch = ref("");
 const filteredRelatedProducts = computed(() => {
-  const currentLang = locale.value;
   if (!relatedProductSearch.value.trim()) return store.products;
   const q = relatedProductSearch.value.trim().toLowerCase();
   return store.products.filter((p) => {
@@ -1526,7 +1848,6 @@ const filteredRelatedProducts = computed(() => {
   });
 });
 
-// ===== Helpers =====
 const formatPrice = (price) => {
   const loc = locale.value === "ar" ? "en-EG" : "en-US";
   return parseFloat(price || 0).toLocaleString(loc);
@@ -1544,7 +1865,6 @@ const uniqueColors = (variants) => {
     .map((v) => v.color);
 };
 
-// ===== Init =====
 onMounted(async () => {
   await Promise.all([
     store.fetchProducts(),
@@ -1558,9 +1878,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ═══════════════════════════════════════
-   Base Page
-═══════════════════════════════════════ */
 .products-page {
   padding: 28px;
   min-height: 100vh;
@@ -1572,7 +1889,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 .header-info {
   display: flex;
@@ -1612,9 +1929,266 @@ onMounted(async () => {
   background: #7a5b1e;
 }
 
-/* ═══════════════════════════════════════
-   Loading / Error
-═══════════════════════════════════════ */
+/* ═══ Search & Filters Bar ═══ */
+.search-filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.search-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #987226;
+  pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  padding: 10px 40px 10px 36px;
+  border: 1.5px solid #e8e0cf;
+  border-radius: 10px;
+  font-family: "Cairo", sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #fff;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.search-input:focus {
+  border-color: #987226;
+  box-shadow: 0 0 0 3px rgba(152, 114, 38, 0.1);
+}
+.search-input::placeholder {
+  color: #bbb;
+}
+.search-clear {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+.search-clear:hover {
+  color: #c62828;
+  background: #ffebee;
+}
+
+.btn-filters-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1.5px solid #e8e0cf;
+  border-radius: 10px;
+  background: #fff;
+  font-family: "Cairo", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+}
+.btn-filters-toggle:hover {
+  border-color: #987226;
+  color: #987226;
+}
+.btn-filters-toggle.active {
+  background: #987226;
+  color: #fff;
+  border-color: #987226;
+}
+.filter-active-dot {
+  width: 7px;
+  height: 7px;
+  background: #e53e3e;
+  border-radius: 50%;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  border: 1.5px solid #fff;
+}
+.btn-filters-toggle.active .filter-active-dot {
+  border-color: #987226;
+}
+
+.btn-reset-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 1.5px solid #ffcdd2;
+  border-radius: 10px;
+  background: #ffebee;
+  font-family: "Cairo", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c62828;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-reset-filters:hover {
+  background: #ffcdd2;
+}
+
+/* ═══ Filters Panel ═══ */
+.filters-panel {
+  background: #fff;
+  border: 1.5px solid #f0e8d0;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #987226;
+}
+.filter-select,
+.filter-input {
+  padding: 8px 12px;
+  border: 1.5px solid #e8e0cf;
+  border-radius: 8px;
+  font-family: "Cairo", sans-serif;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.filter-select:focus,
+.filter-input:focus {
+  border-color: #987226;
+}
+.filter-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23987226' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 10px center;
+  padding-left: 28px;
+}
+.price-range-group {
+  grid-column: span 2;
+}
+@media (max-width: 600px) {
+  .price-range-group {
+    grid-column: span 1;
+  }
+}
+.price-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.price-input-wrap {
+  position: relative;
+  flex: 1;
+}
+.price-label {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: #aaa;
+  font-weight: 700;
+  pointer-events: none;
+}
+.price-input-wrap .filter-input {
+  padding-right: 28px;
+}
+.price-separator {
+  color: #ccc;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Active Filter Tags */
+.active-filter-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f0e8d0;
+}
+.tags-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #aaa;
+}
+.filter-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef3cd;
+  color: #7a5b1e;
+  border: 1px solid #f0e8d0;
+  border-radius: 20px;
+  padding: 3px 10px 3px 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.filter-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #987226;
+  font-size: 11px;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.filter-tag button:hover {
+  color: #c62828;
+}
+
+/* Filters slide transition */
+.filters-slide-enter-active,
+.filters-slide-leave-active {
+  transition: all 0.25s ease;
+}
+.filters-slide-enter-from,
+.filters-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ═══ Loading / Error ═══ */
 .loading-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1652,9 +2226,27 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-/* ═══════════════════════════════════════
-   Table
-═══════════════════════════════════════ */
+/* No Results */
+.no-results-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  gap: 8px;
+}
+.no-results-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #3a2e1a;
+  margin: 0;
+}
+.no-results-sub {
+  font-size: 13px;
+  color: #aaa;
+  margin: 0;
+}
+
+/* ═══ Table ═══ */
 .table-wrapper {
   background: #fff;
   border-radius: 16px;
@@ -1819,23 +2411,21 @@ onMounted(async () => {
 .delete-btn:hover {
   background: #ffcdd2;
 }
-.empty-row {
-  text-align: center;
-  color: #aaa;
-  padding: 40px;
-}
 
 /* Pagination */
 .pagination {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   padding: 16px;
   border-top: 1px solid #f0e8d0;
+  flex-wrap: wrap;
 }
 .page-btn {
-  width: 36px;
+  min-width: 36px;
   height: 36px;
+  padding: 0 8px;
   border: 1.5px solid #e8e0cf;
   border-radius: 8px;
   background: #fff;
@@ -1850,13 +2440,24 @@ onMounted(async () => {
   color: #fff;
   border-color: #987226;
 }
-.page-btn:hover:not(.active) {
+.page-btn:hover:not(.active):not(:disabled) {
   background: #faf6ee;
 }
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.page-btn.page-nav {
+  font-size: 16px;
+  color: #987226;
+}
+.page-dots {
+  color: #aaa;
+  font-size: 14px;
+  padding: 0 4px;
+}
 
-/* ═══════════════════════════════════════
-   Modal Base
-═══════════════════════════════════════ */
+/* ═══ Modal ═══ */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1920,10 +2521,6 @@ onMounted(async () => {
 .modal-close:hover {
   background: #f5f0e8;
 }
-
-/* ═══════════════════════════════════════
-   Tabs Bar
-═══════════════════════════════════════ */
 .tabs-bar {
   display: flex;
   gap: 2px;
@@ -1971,8 +2568,6 @@ onMounted(async () => {
 .tab-icon {
   font-size: 14px;
 }
-.tab-label {
-}
 .tab-check {
   font-size: 10px;
   background: #e8f5e9;
@@ -1986,10 +2581,6 @@ onMounted(async () => {
   font-weight: 800;
   flex-shrink: 0;
 }
-
-/* ═══════════════════════════════════════
-   Modal Body & Panes
-═══════════════════════════════════════ */
 .modal-body {
   padding: 20px 24px;
   overflow-y: auto;
@@ -2010,10 +2601,6 @@ onMounted(async () => {
     transform: translateY(0);
   }
 }
-
-/* ═══════════════════════════════════════
-   Form Sections & Inputs
-═══════════════════════════════════════ */
 .form-section {
   border: 1.5px solid #f0e8d0;
   border-radius: 12px;
@@ -2112,8 +2699,6 @@ onMounted(async () => {
 .char-count.warn {
   color: #e65100;
 }
-
-/* Price highlight box */
 .price-highlight-box {
   background: linear-gradient(135deg, #fdfaf4, #fef8e8);
   border: 1.5px solid #f0e8d0;
@@ -2121,8 +2706,6 @@ onMounted(async () => {
   padding: 16px 18px;
   margin-bottom: 18px;
 }
-
-/* Checkbox */
 .check-label {
   display: flex;
   align-items: center;
@@ -2138,8 +2721,6 @@ onMounted(async () => {
   accent-color: #987226;
   cursor: pointer;
 }
-
-/* Lang Tabs */
 .lang-tabs {
   display: flex;
   gap: 6px;
@@ -2162,10 +2743,6 @@ onMounted(async () => {
   color: #fff;
   border-color: #987226;
 }
-.lang-block {
-}
-
-/* Specifications */
 .specs-container {
   margin-top: 12px;
   padding: 12px;
@@ -2202,8 +2779,6 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 12px;
 }
-
-/* Categories Tree */
 .categories-tree {
   display: flex;
   flex-direction: column;
@@ -2266,8 +2841,6 @@ onMounted(async () => {
   padding: 6px;
   margin: 0;
 }
-
-/* Colors inline */
 .color-preview-inline {
   display: flex;
   align-items: center;
@@ -2286,8 +2859,6 @@ onMounted(async () => {
   font-size: 11px;
   color: #666;
 }
-
-/* Images */
 .btn-add-gallery {
   padding: 4px 10px;
   background: #987226;
@@ -2344,8 +2915,6 @@ onMounted(async () => {
   flex-shrink: 0;
   margin-top: 6px;
 }
-
-/* Variants */
 .variants-header {
   display: flex;
   justify-content: space-between;
@@ -2400,8 +2969,6 @@ onMounted(async () => {
   padding: 16px;
   font-size: 13px;
 }
-
-/* Related Products */
 .related-products-list {
   display: flex;
   flex-direction: column;
@@ -2475,8 +3042,6 @@ onMounted(async () => {
   font-weight: 700;
   color: #987226;
 }
-
-/* SEO Preview */
 .seo-preview-box {
   background: #fff;
   border: 1.5px solid #f0e8d0;
@@ -2507,10 +3072,10 @@ onMounted(async () => {
   color: #555;
   line-height: 1.5;
 }
-
-/* ═══════════════════════════════════════
-   Modal Footer (Tab Navigation)
-═══════════════════════════════════════ */
+.long-desc-input {
+  min-height: 110px;
+  resize: vertical;
+}
 .modal-footer {
   display: flex;
   align-items: center;
@@ -2563,7 +3128,6 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
 }
 .btn-tab-prev:hover {
   background: #ece8e0;
@@ -2578,7 +3142,6 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
-  transition: background 0.15s;
 }
 .btn-tab-next:hover {
   background: #7a5b1e;
@@ -2635,18 +3198,6 @@ onMounted(async () => {
     transform: rotate(360deg);
   }
 }
-
-/* ═══════════════════════════════════════
-   Long Description
-═══════════════════════════════════════ */
-.long-desc-input {
-  min-height: 110px;
-  resize: vertical;
-}
-
-/* ═══════════════════════════════════════
-   View Modal
-═══════════════════════════════════════ */
 .view-modal {
   max-width: 600px;
 }
@@ -2700,16 +3251,6 @@ onMounted(async () => {
   color: #2e7d32;
   font-weight: 700;
 }
-.specs-view-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 13px;
-}
-.specs-view-list li {
-  margin-bottom: 4px;
-  color: #555;
-}
 .variants-list {
   display: flex;
   flex-direction: column;
@@ -2739,10 +3280,6 @@ onMounted(async () => {
   color: #987226;
   font-weight: 700;
 }
-
-/* ═══════════════════════════════════════
-   Confirm Delete
-═══════════════════════════════════════ */
 .confirm-box {
   background: #fff;
   border-radius: 18px;
@@ -2792,10 +3329,6 @@ onMounted(async () => {
   opacity: 0.7;
   cursor: not-allowed;
 }
-
-/* ═══════════════════════════════════════
-   Toast
-═══════════════════════════════════════ */
 .toast {
   position: fixed;
   bottom: 28px;

@@ -14,15 +14,25 @@ export const useProductsStore = defineStore("products", () => {
   const actionLoading = ref(false);
   const error = ref(null);
 
-  // --- Getters ---
+  // --- Active Filters State ---
+  const activeFilters = ref({
+    searchTerm: "",
+    categoryId: "",
+    brandId: "",
+    colorId: "",
+    sizeId: "",
+    minPrice: "",
+    maxPrice: "",
+    page: 1,
+    limit: 20,
+  });
 
-  // تفاعلي تماماً مع تغيير اللغة
+  // --- Getters ---
   const getProductName = computed(() => {
     return (product) => {
       const currentLang = locale.value;
       if (!product?.translations?.length)
         return product?.name || product?.slug || "";
-
       const t = product.translations.find(
         (t) => t.languageCode === currentLang,
       );
@@ -41,13 +51,41 @@ export const useProductsStore = defineStore("products", () => {
     return Math.round(((base - disc) / base) * 100);
   });
 
-  // --- Actions ---
+  const hasActiveFilters = computed(() => {
+    const f = activeFilters.value;
+    return !!(
+      f.searchTerm ||
+      f.categoryId ||
+      f.brandId ||
+      f.colorId ||
+      f.sizeId ||
+      f.minPrice ||
+      f.maxPrice
+    );
+  });
 
+  // --- Actions ---
   async function fetchProducts(params = {}) {
     loading.value = true;
     error.value = null;
     try {
-      const response = await api("/products", { params });
+      // دمج الـ activeFilters مع الـ params المررة
+      const mergedParams = {
+        ...activeFilters.value,
+        ...params,
+      };
+
+      // حذف القيم الفارغة قبل الإرسال
+      const cleanParams = Object.fromEntries(
+        Object.entries(mergedParams).filter(
+          ([_, v]) => v !== "" && v !== null && v !== undefined,
+        ),
+      );
+
+      // تحديث activeFilters بالـ params الجديدة
+      if (params.page !== undefined) activeFilters.value.page = params.page;
+
+      const response = await api("/products", { params: cleanParams });
       if (response.success) {
         products.value = response.data.data || response.data;
         meta.value = response.data.meta;
@@ -59,6 +97,27 @@ export const useProductsStore = defineStore("products", () => {
     } finally {
       loading.value = false;
     }
+  }
+
+  async function applyFilters(newFilters = {}) {
+    // تحديث الـ filters وإعادة الصفحة للأولى
+    Object.assign(activeFilters.value, newFilters, { page: 1 });
+    await fetchProducts();
+  }
+
+  function resetFilters() {
+    activeFilters.value = {
+      searchTerm: "",
+      categoryId: "",
+      brandId: "",
+      colorId: "",
+      sizeId: "",
+      minPrice: "",
+      maxPrice: "",
+      page: 1,
+      limit: 20,
+    };
+    fetchProducts();
   }
 
   async function fetchProduct(id) {
@@ -155,10 +214,14 @@ export const useProductsStore = defineStore("products", () => {
     loading,
     actionLoading,
     error,
+    activeFilters,
+    hasActiveFilters,
     getProductName,
     getProductPrice,
     getDiscountPercent,
     fetchProducts,
+    applyFilters,
+    resetFilters,
     fetchProduct,
     createProduct,
     updateProduct,
