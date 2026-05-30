@@ -672,7 +672,7 @@ const handleImgError = (e) => {
 
 .categories-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: clamp(12px, 2.5vw, 24px);
   max-width: 1200px;
   margin: 0 auto;
@@ -683,7 +683,7 @@ const handleImgError = (e) => {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: clamp(14px, 2.5vw, 20px) 12px;
+  padding: clamp(14px, 2.5vw, 20px) 6px;
   background: #fff;
   border-radius: 20px;
   text-decoration: none;
@@ -725,7 +725,7 @@ const handleImgError = (e) => {
 .category-image {
   width: 100%;
   height: 100%;
-  border-radius: 16px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #faf3e4, #f0e8d0);
   display: flex;
   align-items: center;
@@ -737,8 +737,7 @@ const handleImgError = (e) => {
   transform: scale(1.08) rotate(-2deg);
 }
 .category-image img {
-  max-width: 80%;
-  max-height: 80%;
+  max-width: 100%;
   object-fit: contain;
   transition: transform 0.4s;
 }
