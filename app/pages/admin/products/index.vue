@@ -26,7 +26,6 @@
 
     <!-- ===== Search & Filters Bar ===== -->
     <div class="search-filters-bar">
-      <!-- Search Input -->
       <div class="search-input-wrap">
         <svg
           class="search-icon"
@@ -63,7 +62,6 @@
         </button>
       </div>
 
-      <!-- Filter Toggles -->
       <button
         class="btn-filters-toggle"
         :class="{ active: showFilters }"
@@ -85,7 +83,6 @@
         <span v-if="store.hasActiveFilters" class="filter-active-dot"></span>
       </button>
 
-      <!-- Reset -->
       <button
         v-if="store.hasActiveFilters"
         class="btn-reset-filters"
@@ -110,7 +107,6 @@
     <Transition name="filters-slide">
       <div v-if="showFilters" class="filters-panel">
         <div class="filters-grid">
-          <!-- Category -->
           <div class="filter-group">
             <label class="filter-label">القسم</label>
             <select
@@ -131,13 +127,12 @@
                   :key="child.id"
                   :value="child.id"
                 >
-                  　└ {{ categoryStore.getCategoryName(child, "ar") }}
+                  └ {{ categoryStore.getCategoryName(child, "ar") }}
                 </option>
               </template>
             </select>
           </div>
 
-          <!-- Brand -->
           <div class="filter-group">
             <label class="filter-label">الماركة</label>
             <select
@@ -156,7 +151,6 @@
             </select>
           </div>
 
-          <!-- Color -->
           <div class="filter-group">
             <label class="filter-label">اللون</label>
             <select
@@ -175,7 +169,6 @@
             </select>
           </div>
 
-          <!-- Size -->
           <div class="filter-group">
             <label class="filter-label">الحجم</label>
             <select
@@ -194,7 +187,6 @@
             </select>
           </div>
 
-          <!-- Price Range -->
           <div class="filter-group price-range-group">
             <label class="filter-label">نطاق السعر (ج.م)</label>
             <div class="price-inputs">
@@ -224,7 +216,6 @@
             </div>
           </div>
 
-          <!-- Limit -->
           <div class="filter-group">
             <label class="filter-label">عدد النتائج</label>
             <select
@@ -240,7 +231,6 @@
           </div>
         </div>
 
-        <!-- Active Filter Tags -->
         <div v-if="store.hasActiveFilters" class="active-filter-tags">
           <span class="tags-label">الفلاتر النشطة:</span>
           <span v-if="store.activeFilters.searchTerm" class="filter-tag">
@@ -290,7 +280,6 @@
 
     <!-- ===== Products Table ===== -->
     <div v-else class="table-wrapper">
-      <!-- No Results -->
       <div v-if="!store.products.length" class="no-results-state">
         <svg
           width="56"
@@ -464,7 +453,6 @@
         </tbody>
       </table>
 
-      <!-- Pagination -->
       <div v-if="store.meta && store.meta.totalPages > 1" class="pagination">
         <button
           class="page-btn page-nav"
@@ -503,12 +491,42 @@
               {{ isEditing ? "تعديل المنتج" : "إضافة منتج جديد" }}
             </h2>
             <div class="modal-header-meta">
-              <span class="modal-draft-badge">{{
+              <!-- ===== Draft Indicator ===== -->
+              <span
+                v-if="hasDraft"
+                class="modal-draft-badge draft-saved"
+                title="يوجد مسودة محفوظة"
+              >
+                💾 مسودة محفوظة
+              </span>
+              <span v-else class="modal-draft-badge">{{
                 isEditing ? "تعديل" : "مسودة"
               }}</span>
+              <!-- ===== Discard Draft Button ===== -->
+              <button
+                v-if="hasDraft"
+                class="btn-discard-draft"
+                @click="discardDraft"
+                title="تجاهل المسودة وبدء من جديد"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+                تجاهل
+              </button>
               <button class="modal-close" @click="closeModal">✕</button>
             </div>
           </div>
+
           <div class="tabs-bar">
             <button
               v-for="(tab, idx) in tabs"
@@ -527,6 +545,7 @@
               >
             </button>
           </div>
+
           <div class="modal-body">
             <!-- TAB 0 — الأسعار والمخزون -->
             <div v-show="activeTab === 0" class="tab-pane">
@@ -1513,9 +1532,7 @@ const resetAll = () => {
 };
 
 const clearSingleFilter = (key) => {
-  if (key === "searchTerm") {
-    searchInput.value = "";
-  }
+  if (key === "searchTerm") searchInput.value = "";
   if (key in localFilters) localFilters[key] = "";
   store.applyFilters({ [key]: "" });
 };
@@ -1526,7 +1543,6 @@ const clearPriceFilter = () => {
   store.applyFilters({ minPrice: "", maxPrice: "" });
 };
 
-// Helper: get names for active filter tags
 const getCategoryNameById = (id) => {
   for (const cat of categoryStore.categories) {
     if (cat.id === id) return categoryStore.getCategoryName(cat, "ar");
@@ -1586,6 +1602,7 @@ const tabs = [
 const activeTab = ref(0);
 const activeLang = ref(0);
 const completedTabs = ref([]);
+
 const switchTab = (idx) => {
   if (!completedTabs.value.includes(activeTab.value))
     completedTabs.value.push(activeTab.value);
@@ -1607,6 +1624,88 @@ const isEditing = ref(false);
 const editingId = ref(null);
 const viewingProduct = ref(null);
 const deleteTarget = ref(null);
+
+// ===== Form Persistence =====
+const DRAFT_CREATE_KEY = "products_draft_create";
+const DRAFT_EDIT_KEY = "products_draft_edit";
+
+// computed: هل يوجد مسودة للوضع الحالي
+const hasDraft = computed(() => {
+  const key = isEditing.value ? DRAFT_EDIT_KEY : DRAFT_CREATE_KEY;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    // في وضع التعديل نتحقق من نفس المنتج
+    if (isEditing.value && saved.editingId !== editingId.value) return false;
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+// Debounce timer for saving drafts to avoid memory spikes
+let draftSaveTimer = null;
+
+const saveDraft = () => {
+  if (!showModal.value) return;
+
+  // Clear previous timer
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+
+  // Wait 1 second after user stops typing before saving to SessionStorage
+  draftSaveTimer = setTimeout(() => {
+    const key = isEditing.value ? DRAFT_EDIT_KEY : DRAFT_CREATE_KEY;
+    try {
+      // Use a shallow clone for simple fields and structured clone for safety
+      // Avoid JSON.stringify here for comparison, just save directly
+      const dataToSave = {
+        form: JSON.parse(JSON.stringify(form)),
+        editingId: editingId.value,
+        activeTab: activeTab.value,
+        activeLang: activeLang.value,
+        completedTabs: completedTabs.value,
+      };
+      sessionStorage.setItem(key, JSON.stringify(dataToSave));
+    } catch (e) {
+      console.warn("Draft save failed (storage full?):", e);
+    }
+  }, 1000);
+};
+
+const loadDraft = (editingMode, id = null) => {
+  const key = editingMode ? DRAFT_EDIT_KEY : DRAFT_CREATE_KEY;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (editingMode && saved.editingId !== id) return null;
+    return saved;
+  } catch {
+    return null;
+  }
+};
+
+const clearDraft = (editingMode) => {
+  sessionStorage.removeItem(editingMode ? DRAFT_EDIT_KEY : DRAFT_CREATE_KEY);
+};
+
+// تجاهل المسودة وإعادة التعيين حسب الوضع
+const discardDraft = async () => {
+  clearDraft(isEditing.value);
+  if (isEditing.value && editingId.value) {
+    // أعد تحميل بيانات المنتج من الـ API
+    activeTab.value = 0;
+    activeLang.value = 0;
+    completedTabs.value = [];
+    await _loadProductIntoForm(editingId.value);
+  } else {
+    activeTab.value = 0;
+    activeLang.value = 0;
+    completedTabs.value = [];
+    Object.assign(form, defaultForm());
+  }
+};
 
 // ===== Default Form =====
 const defaultForm = () => ({
@@ -1646,8 +1745,29 @@ const defaultForm = () => ({
   relatedProductsIds: [],
   relatedCategoryIds: [],
 });
+
 const form = reactive(defaultForm());
 
+// ===== Optimized Auto-save watch =====
+// Removed JSON.stringify watcher which caused the crash.
+// Now we watch specific parts or use deep watch without heavy serialization for comparison.
+watch(
+  form,
+  () => {
+    saveDraft();
+  },
+  { deep: true },
+);
+
+watch(
+  [activeTab, activeLang, completedTabs],
+  () => {
+    saveDraft();
+  },
+  { deep: true },
+);
+
+// ===== Form Helpers =====
 const addSpec = (li) =>
   form.translations[li].specificationsList.push({ key: "", value: "" });
 const removeSpec = (li, si) =>
@@ -1666,24 +1786,10 @@ const addVariant = () =>
 const removeVariant = (idx) => form.variants.splice(idx, 1);
 const addGalleryImage = () => form.defaultGallery.push("");
 
-const openCreateModal = () => {
-  isEditing.value = false;
-  editingId.value = null;
-  activeTab.value = 0;
-  activeLang.value = 0;
-  completedTabs.value = [];
-  Object.assign(form, defaultForm());
-  showModal.value = true;
-};
-
-const openEditModal = async (product) => {
-  isEditing.value = true;
-  editingId.value = product.id;
-  activeTab.value = 0;
-  activeLang.value = 0;
-  completedTabs.value = [];
-  const full = await store.fetchProduct(product.id);
-  if (!full) return;
+// ===== Helper: Load product from API into form =====
+const _loadProductIntoForm = async (id) => {
+  const full = await store.fetchProduct(id);
+  if (!full) return false;
   const arTrans = full.translations?.find((t) => t.languageCode === "ar") || {};
   const enTrans = full.translations?.find((t) => t.languageCode === "en") || {};
   const specsToArray = (obj) =>
@@ -1741,16 +1847,67 @@ const openEditModal = async (product) => {
     relatedProductsIds: (full.relatedProducts || []).map((p) => p.id),
     relatedCategoryIds: (full.relatedCategories || []).map((c) => c.id),
   });
+  return true;
+};
+
+// ===== Open Create Modal =====
+const openCreateModal = () => {
+  isEditing.value = false;
+  editingId.value = null;
+
+  const saved = loadDraft(false);
+  if (saved) {
+    // استعادة المسودة المحفوظة
+    Object.assign(form, saved.form);
+    activeTab.value = saved.activeTab ?? 0;
+    activeLang.value = saved.activeLang ?? 0;
+    completedTabs.value = saved.completedTabs ?? [];
+  } else {
+    activeTab.value = 0;
+    activeLang.value = 0;
+    completedTabs.value = [];
+    Object.assign(form, defaultForm());
+  }
+
   showModal.value = true;
 };
 
+// ===== Open Edit Modal =====
+const openEditModal = async (product) => {
+  isEditing.value = true;
+  editingId.value = product.id;
+
+  const saved = loadDraft(true, product.id);
+  if (saved) {
+    // استعادة المسودة المحفوظة لنفس المنتج
+    Object.assign(form, saved.form);
+    activeTab.value = saved.activeTab ?? 0;
+    activeLang.value = saved.activeLang ?? 0;
+    completedTabs.value = saved.completedTabs ?? [];
+    showModal.value = true;
+    return;
+  }
+
+  // لا مسودة → حمّل من الـ API
+  activeTab.value = 0;
+  activeLang.value = 0;
+  completedTabs.value = [];
+  const ok = await _loadProductIntoForm(product.id);
+  if (!ok) return;
+  showModal.value = true;
+};
+
+// ===== Close Modal — لا تمسح الداتا =====
 const closeModal = () => {
   showModal.value = false;
+  // المسودة تبقى في sessionStorage عمداً
 };
+
 const viewProduct = (product) => {
   viewingProduct.value = product;
 };
 
+// ===== Submit Form =====
 const submitForm = async () => {
   const arrayToSpecs = (list) => {
     if (!list?.length) return {};
@@ -1803,10 +1960,13 @@ const submitForm = async () => {
       ? form.relatedCategoryIds
       : undefined,
   };
+
   const result = isEditing.value
     ? await store.updateProduct(editingId.value, payload)
     : await store.createProduct(payload);
+
   if (result.success) {
+    clearDraft(isEditing.value); // ← امسح المسودة فقط عند النجاح
     closeModal();
     showToast(
       isEditing.value ? "تم تعديل المنتج بنجاح" : "تم إنشاء المنتج بنجاح",
@@ -1819,6 +1979,7 @@ const submitForm = async () => {
 const confirmDelete = (product) => {
   deleteTarget.value = product;
 };
+
 const handleDelete = async () => {
   if (!deleteTarget.value) return;
   const result = await store.deleteProduct(deleteTarget.value.id);
@@ -1929,7 +2090,6 @@ onMounted(async () => {
   background: #7a5b1e;
 }
 
-/* ═══ Search & Filters Bar ═══ */
 .search-filters-bar {
   display: flex;
   align-items: center;
@@ -2050,7 +2210,6 @@ onMounted(async () => {
   background: #ffcdd2;
 }
 
-/* ═══ Filters Panel ═══ */
 .filters-panel {
   background: #fff;
   border: 1.5px solid #f0e8d0;
@@ -2135,7 +2294,6 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-/* Active Filter Tags */
 .active-filter-tags {
   display: flex;
   align-items: center;
@@ -2177,7 +2335,6 @@ onMounted(async () => {
   color: #c62828;
 }
 
-/* Filters slide transition */
 .filters-slide-enter-active,
 .filters-slide-leave-active {
   transition: all 0.25s ease;
@@ -2188,7 +2345,6 @@ onMounted(async () => {
   transform: translateY(-8px);
 }
 
-/* ═══ Loading / Error ═══ */
 .loading-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2226,7 +2382,6 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-/* No Results */
 .no-results-state {
   display: flex;
   flex-direction: column;
@@ -2246,7 +2401,6 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* ═══ Table ═══ */
 .table-wrapper {
   background: #fff;
   border-radius: 16px;
@@ -2412,7 +2566,6 @@ onMounted(async () => {
   background: #ffcdd2;
 }
 
-/* Pagination */
 .pagination {
   display: flex;
   justify-content: center;
@@ -2457,7 +2610,6 @@ onMounted(async () => {
   padding: 0 4px;
 }
 
-/* ═══ Modal ═══ */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -2495,7 +2647,7 @@ onMounted(async () => {
 .modal-header-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .modal-draft-badge {
   background: #f0e8d0;
@@ -2505,6 +2657,41 @@ onMounted(async () => {
   padding: 3px 10px;
   border-radius: 20px;
 }
+/* ===== Draft Saved Badge ===== */
+.modal-draft-badge.draft-saved {
+  background: #e8f5e9;
+  color: #2e7d32;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+@keyframes pulse-green {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+/* ===== Discard Draft Button ===== */
+.btn-discard-draft {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  font-family: "Cairo", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-discard-draft:hover {
+  background: #ffcdd2;
+}
+
 .modal-close {
   background: none;
   border: none;
@@ -2521,6 +2708,7 @@ onMounted(async () => {
 .modal-close:hover {
   background: #f5f0e8;
 }
+
 .tabs-bar {
   display: flex;
   gap: 2px;
@@ -3198,6 +3386,7 @@ onMounted(async () => {
     transform: rotate(360deg);
   }
 }
+
 .view-modal {
   max-width: 600px;
 }
@@ -3280,6 +3469,7 @@ onMounted(async () => {
   color: #987226;
   font-weight: 700;
 }
+
 .confirm-box {
   background: #fff;
   border-radius: 18px;
@@ -3329,6 +3519,7 @@ onMounted(async () => {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
 .toast {
   position: fixed;
   bottom: 28px;
