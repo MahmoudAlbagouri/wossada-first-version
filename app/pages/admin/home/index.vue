@@ -17,7 +17,8 @@ const TYPES: Record<HomeSectionType, { label: string; icon: string; tab?: string
 const typeOptions = (Object.keys(TYPES) as HomeSectionType[]).map((value) => ({ value, label: TYPES[value].label }));
 
 // Keys of the existing content blocks, to link a section to its content.
-const { data: blockKeys } = await useAsyncData(
+// `visible` holds only blocks the home page will actually show.
+const { data: blocks } = await useAsyncData(
   'admin-home-block-keys',
   async () => {
     const [main, product, banners, full, statics] = await Promise.all([
@@ -27,15 +28,20 @@ const { data: blockKeys } = await useAsyncData(
       admin.home.fullImages.list(),
       admin.home.staticSections.list(),
     ]);
-    const keys = (list: { key: string }[]) => [...new Set(list.map((b) => b.key))];
-    return {
-      mainSlider: keys(main),
-      productSlider: keys(product),
-      fixedBanner: keys(banners),
-      fullImage: keys(full),
-      staticSection: keys(statics),
+    type Block = { key: string; isActive?: boolean; showInHome?: boolean };
+    const keys = (list: Block[]) => [...new Set(list.map((b) => b.key))];
+    const visible = (list: Block[]) => keys(list.filter((b) => b.isActive !== false && b.showInHome !== false));
+    const all: Record<HomeSectionType, Block[]> = {
+      mainSlider: main,
+      productSlider: product,
+      fixedBanner: banners,
+      fullImage: full,
+      staticSection: statics,
       CATEGORY_GRID: [],
-    } as Record<HomeSectionType, string[]>;
+    };
+    const map = (fn: (list: Block[]) => string[]) =>
+      Object.fromEntries(Object.entries(all).map(([type, list]) => [type, fn(list)])) as Record<HomeSectionType, string[]>;
+    return { all: map(keys), visible: map(visible) };
   },
   { server: false },
 );
@@ -79,9 +85,9 @@ const { items, loading, refresh, modalOpen, editing, form, openCreate, openEdit,
 
 watch(items, (list) => (nextOrder = list.length), { immediate: true });
 
-const keySuggestions = computed(() => blockKeys.value?.[form.values.type] ?? []);
+const keySuggestions = computed(() => blocks.value?.all[form.values.type] ?? []);
 const isLinked = (section: HomeSectionConfig) =>
-  section.type === 'CATEGORY_GRID' ? null : (blockKeys.value?.[section.type]?.includes(section.section_key) ?? false);
+  section.type === 'CATEGORY_GRID' ? null : (blocks.value?.visible[section.type]?.includes(section.section_key) ?? false);
 
 const reordering = ref(false);
 async function move(index: number, delta: -1 | 1) {
@@ -136,7 +142,7 @@ async function toggleActive(section: HomeSectionConfig, isActive: boolean) {
           <span>
             <code dir="ltr">{{ section.section_key }}</code>
             <template v-if="isLinked(section) === false">
-              · <span class="warn"><Icon name="ph:warning" aria-hidden="true" />لا يوجد محتوى بهذا المفتاح</span>
+              · <span class="warn"><Icon name="ph:warning" aria-hidden="true" />لا يوجد محتوى ظاهر بهذا المفتاح</span>
             </template>
           </span>
         </div>

@@ -8,7 +8,7 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-const { price } = useLocalized();
+const { number } = useLocalized();
 const { state, toggle, update, clear, activeCount } = useCatalogQuery();
 
 const minPrice = ref<number | null>(state.value.min ?? null);
@@ -49,8 +49,8 @@ const hasFacets = computed(() => {
     <details v-if="range && range.max > 0" class="filters__group" open>
       <summary>{{ t('catalog.price') }}<Icon name="ph:caret-down" aria-hidden="true" /></summary>
       <form class="filters__price" @submit.prevent="applyPrice">
-        <BaseInput v-model="minPrice" type="number" :min="0" :placeholder="price(range.min)" :label="t('catalog.from')" inputmode="numeric" />
-        <BaseInput v-model="maxPrice" type="number" :min="0" :placeholder="price(range.max)" :label="t('catalog.to')" inputmode="numeric" />
+        <BaseInput v-model="minPrice" type="number" :min="0" :placeholder="number(range.min)" :label="t('catalog.from')" inputmode="numeric" />
+        <BaseInput v-model="maxPrice" type="number" :min="0" :placeholder="number(range.max)" :label="t('catalog.to')" inputmode="numeric" />
         <BaseButton type="submit" variant="secondary" size="sm" block>{{ t('catalog.apply') }}</BaseButton>
       </form>
     </details>

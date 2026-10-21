@@ -40,6 +40,8 @@ interface SlideRow {
 interface BlockForm {
   key: string;
   isActive: boolean;
+  /** The home page lists only blocks with this on (static sections excepted). */
+  showInHome: boolean;
   imageUrl: string | null;
   tr: Record<AdminLanguage, { title: string; link: string }>;
   items: SlideRow[];
@@ -69,6 +71,7 @@ const { items, loading, modalOpen, editing, form, openCreate, openEdit, submit, 
     return {
       key: block?.key ?? '',
       isActive: block?.isActive ?? true,
+      showInHome: (block as { showInHome?: boolean } | null)?.showInHome ?? true,
       imageUrl: (block as FixedBanner | null)?.imageUrl ?? null,
       tr:
         withText && 'translations' in withText
@@ -93,7 +96,11 @@ const { items, loading, modalOpen, editing, form, openCreate, openEdit, submit, 
     ],
   },
   save: (values, block) => {
-    const base = { key: values.key.trim(), isActive: values.isActive };
+    const base = {
+      key: values.key.trim(),
+      isActive: values.isActive,
+      ...(props.type === 'staticSection' ? {} : { showInHome: values.showInHome }),
+    };
     // Arabic is always sent; English only when something was filled in.
     const text = (pickFields: (t: BlockForm['tr'][AdminLanguage]) => Record<string, string | undefined>) =>
       ADMIN_LANGUAGES.map((code) => ({ code, fields: pickFields(values.tr[code]) }))
@@ -188,7 +195,10 @@ const hasImage = computed(() => ['fixedBanner', 'fullImage'].includes(props.type
         <div class="block__body">
           <div class="block__title">
             <code dir="ltr">{{ block.key }}</code>
-            <BaseBadge :tone="block.isActive ? 'success' : 'neutral'" dot size="sm">{{ block.isActive ? 'مفعّل' : 'متوقف' }}</BaseBadge>
+            <span class="cluster">
+              <BaseBadge v-if="'showInHome' in block && !block.showInHome" tone="warning" size="sm">مخفي من الرئيسية</BaseBadge>
+              <BaseBadge :tone="block.isActive ? 'success' : 'neutral'" dot size="sm">{{ block.isActive ? 'مفعّل' : 'متوقف' }}</BaseBadge>
+            </span>
           </div>
           <p class="block__summary line-clamp-2">{{ summary(block) }}</p>
         </div>
@@ -203,7 +213,10 @@ const hasImage = computed(() => ['fixedBanner', 'fullImage'].includes(props.type
       <form :id="`block-form-${type}`" class="stack" novalidate @submit="submit">
         <div class="form-grid">
           <BaseInput v-model="form.values.key" label="المفتاح (key)" dir="ltr" :error="form.errors.key" hint="يُستخدم لربطه بقسم في الصفحة الرئيسية" required />
-          <div class="switch-cell"><BaseCheckbox v-model="form.values.isActive" switch label="مفعّل" /></div>
+          <div class="switch-cell">
+            <BaseCheckbox v-model="form.values.isActive" switch label="مفعّل" />
+            <BaseCheckbox v-if="type !== 'staticSection'" v-model="form.values.showInHome" switch label="يظهر في الصفحة الرئيسية" />
+          </div>
         </div>
 
         <ImageUploader v-if="hasImage" v-model="form.values.imageUrl" folder="banners" label="الصورة" :error="form.errors.imageUrl" required />
@@ -324,7 +337,9 @@ const hasImage = computed(() => ['fixedBanner', 'fullImage'].includes(props.type
 }
 .switch-cell {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-4);
 }
 .slide {
   display: flex;
