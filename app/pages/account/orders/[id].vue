@@ -7,17 +7,35 @@ const toast = useToast();
 const { confirm } = useConfirm();
 
 const id = computed(() => String(route.params.id));
-const justPlaced = computed(() => route.query.success === 'true');
+const justPlaced = computed(() => route.query.success === "true");
 
-const { data: order, status, error, refresh } = await useLazyAsyncData(() => `my-order-${id.value}`, () => shop.myOrder(id.value), {
-  server: false,
+const {
+  data: order,
+  status,
+  error,
+  refresh,
+} = await useLazyAsyncData(
+  () => `my-order-${id.value}`,
+  () => shop.myOrder(id.value),
+  {
+    server: false,
+  },
+);
+
+useHead({
+  title: () =>
+    order.value
+      ? `${t("orders.order")} #${shortOrderNumber(order.value.orderNumber)}`
+      : t("orders.order"),
 });
 
-useHead({ title: () => (order.value ? `${t('orders.order')} #${shortOrderNumber(order.value.orderNumber)}` : t('orders.order')) });
-
-const step = computed(() => (order.value ? ORDER_STATUS_META[order.value.status].step : 0));
+const step = computed(() =>
+  order.value ? ORDER_STATUS_META[order.value.status].step : 0,
+);
 const offTrack = computed(() => step.value < 0);
-const canCancel = computed(() => !!order.value && CUSTOMER_CANCELLABLE.includes(order.value.status));
+const canCancel = computed(
+  () => !!order.value && CUSTOMER_CANCELLABLE.includes(order.value.status),
+);
 
 const timeline = computed(() =>
   ORDER_PROGRESS.map((status, index) => ({
@@ -32,30 +50,36 @@ const timeline = computed(() =>
 const address = computed(() => order.value?.shippingSnapshot);
 const city = computed(() =>
   address.value
-    ? placeName({ nameAr: address.value.cityNameAr, nameEn: address.value.cityNameEn })
-    : '',
+    ? placeName({
+        nameAr: address.value.cityNameAr,
+        nameEn: address.value.cityNameEn,
+      })
+    : "",
 );
 const governorate = computed(() =>
   address.value
-    ? placeName({ nameAr: address.value.governorateNameAr, nameEn: address.value.governorateNameEn })
-    : '',
+    ? placeName({
+        nameAr: address.value.governorateNameAr,
+        nameEn: address.value.governorateNameEn,
+      })
+    : "",
 );
 
 const cancelling = ref(false);
 async function cancel() {
   if (!order.value) return;
   const ok = await confirm({
-    title: t('orders.cancelConfirm'),
-    message: t('orders.cancelConfirmText'),
-    tone: 'danger',
-    confirmText: t('orders.cancel'),
-    cancelText: t('orders.keep'),
+    title: t("orders.cancelConfirm"),
+    message: t("orders.cancelConfirmText"),
+    tone: "danger",
+    confirmText: t("orders.cancel"),
+    cancelText: t("orders.keep"),
   });
   if (!ok) return;
   cancelling.value = true;
   try {
     await shop.cancelOrder(order.value.id);
-    toast.success(t('orders.cancelled'));
+    toast.success(t("orders.cancelled"));
     await refresh();
   } catch (e) {
     toast.fromError(e);
@@ -82,17 +106,25 @@ async function downloadInvoice() {
 <template>
   <div class="order-page">
     <NuxtLink to="/account/orders" class="order-page__back">
-      <Icon name="ph:arrow-left" class="flip-rtl" aria-hidden="true" />{{ t('orders.back') }}
+      <Icon name="ph:arrow-left" class="flip-rtl" aria-hidden="true" />{{
+        t("orders.back")
+      }}
     </NuxtLink>
 
     <div v-if="isFetching(status) && !order" class="stack">
-      <div class="skeleton" style="block-size: 8rem; border-radius: var(--radius-lg)" />
-      <div class="skeleton" style="block-size: 16rem; border-radius: var(--radius-lg)" />
+      <div
+        class="skeleton"
+        style="block-size: 8rem; border-radius: var(--radius-lg)"
+      />
+      <div
+        class="skeleton"
+        style="block-size: 16rem; border-radius: var(--radius-lg)"
+      />
     </div>
 
     <div v-else-if="error || !order" class="card">
       <BaseEmptyState icon="ph:package" :title="t('orders.notFound')">
-        <BaseButton to="/account/orders">{{ t('orders.back') }}</BaseButton>
+        <BaseButton to="/account/orders">{{ t("orders.back") }}</BaseButton>
       </BaseEmptyState>
     </div>
 
@@ -103,57 +135,118 @@ async function downloadInvoice() {
         </div>
         <span class="success__icon"><Icon name="ph:check-bold" /></span>
         <div>
-          <h2 class="success__title">{{ t('orders.thanksTitle') }}</h2>
-          <p class="text-muted">{{ t('orders.thanksText') }}</p>
+          <h2 class="success__title">{{ t("orders.thanksTitle") }}</h2>
+          <p class="text-muted">{{ t("orders.thanksText") }}</p>
         </div>
       </div>
 
       <header class="order-page__head">
         <div>
-          <h1 class="order-page__title">{{ t('orders.order') }} #{{ shortOrderNumber(order.orderNumber) }}</h1>
+          <h1 class="order-page__title">
+            {{ t("orders.order") }} #{{ shortOrderNumber(order.orderNumber) }}
+          </h1>
           <p class="text-subtle meta-list">
             <span dir="ltr">{{ order.orderNumber }}</span>
-            <time :datetime="order.createdAt">{{ dateTime(order.createdAt) }}</time>
+            <time :datetime="order.createdAt">{{
+              dateTime(order.createdAt)
+            }}</time>
           </p>
         </div>
         <div class="cluster">
           <OrderStatusBadge :status="order.status" />
-          <BaseButton variant="outline" size="sm" icon="ph:file-pdf" :loading="downloading" @click="downloadInvoice">
-            {{ t('orders.invoice') }}
+          <BaseButton
+            variant="outline"
+            size="sm"
+            icon="ph:file-pdf"
+            :loading="downloading"
+            @click="downloadInvoice"
+          >
+            {{ t("orders.invoice") }}
           </BaseButton>
-          <BaseButton v-if="canCancel" variant="ghost" size="sm" icon="ph:x-circle" :loading="cancelling" class="order-page__cancel" @click="cancel">
-            {{ t('orders.cancel') }}
+          <BaseButton
+            v-if="canCancel"
+            variant="ghost"
+            size="sm"
+            icon="ph:x-circle"
+            :loading="cancelling"
+            class="order-page__cancel"
+            @click="cancel"
+          >
+            {{ t("orders.cancel") }}
           </BaseButton>
         </div>
       </header>
 
       <!-- Progress tracker -->
       <section class="card card-pad">
-        <BaseAlert v-if="offTrack" :tone="order.status === 'cancelled' ? 'danger' : 'warning'" :title="t(`orders.status.${order.status}`)">
-          {{ order.status === 'cancelled' ? t('orders.cancelledText') : t('orders.returnedText') }}
+        <BaseAlert
+          v-if="offTrack"
+          :tone="order.status === 'cancelled' ? 'danger' : 'warning'"
+          :title="t(`orders.status.${order.status}`)"
+        >
+          {{
+            order.status === "cancelled"
+              ? t("orders.cancelledText")
+              : t("orders.returnedText")
+          }}
         </BaseAlert>
-        <ol v-else class="tracker" :style="{ '--progress': Math.max(step, 0) / (ORDER_PROGRESS.length - 1) }">
-          <li v-for="item in timeline" :key="item.status" class="tracker__step" :class="{ 'is-done': item.done, 'is-current': item.current }">
-            <span class="tracker__dot"><Icon :name="item.done ? 'ph:check-bold' : item.icon" aria-hidden="true" /></span>
+        <ol
+          v-else
+          class="tracker"
+          :style="{
+            '--progress': Math.max(step, 0) / (ORDER_PROGRESS.length - 1),
+          }"
+        >
+          <li
+            v-for="item in timeline"
+            :key="item.status"
+            class="tracker__step"
+            :class="{ 'is-done': item.done, 'is-current': item.current }"
+          >
+            <span class="tracker__dot"
+              ><Icon
+                :name="item.done ? 'ph:check-bold' : item.icon"
+                aria-hidden="true"
+            /></span>
             <span class="tracker__label">{{ item.label }}</span>
           </li>
         </ol>
         <p v-if="order.trackingNumber" class="tracking">
-          <Icon name="ph:barcode" aria-hidden="true" />{{ t('orders.tracking') }}: <strong dir="ltr">{{ order.trackingNumber }}</strong>
+          <Icon name="ph:barcode" aria-hidden="true" />{{
+            t("orders.tracking")
+          }}: <strong dir="ltr">{{ order.trackingNumber }}</strong>
         </p>
       </section>
 
       <div class="order-page__grid">
         <section class="card card-pad">
-          <h2 class="block-title">{{ t('orders.items') }}</h2>
+          <h2 class="block-title">{{ t("orders.items") }}</h2>
           <ul class="items">
             <li v-for="item in order.items" :key="item.id" class="item">
-              <BaseImage :src="item.productImage ?? item.product?.mainImage" :alt="item.productName ?? ''" :width="80" :height="80" ratio="1" rounded class="item__img" />
+              <BaseImage
+                :src="item.productImage ?? item.product?.mainImage"
+                :alt="item.productName ?? ''"
+                :width="80"
+                :height="80"
+                ratio="1"
+                rounded
+                class="item__img"
+              />
               <div class="item__info">
-                <NuxtLink v-if="item.product" :to="`/product/${item.product.slug}`" class="item__name">{{ item.productName }}</NuxtLink>
+                <NuxtLink
+                  v-if="item.product"
+                  :to="`/product/${item.product.slug}`"
+                  class="item__name"
+                  >{{ item.productName }}</NuxtLink
+                >
                 <span v-else class="item__name">{{ item.productName }}</span>
-                <small v-if="item.variantLabel" class="text-subtle">{{ item.variantLabel }}</small>
-                <small class="text-subtle">{{ item.quantity }} × {{ price(item.priceAtPurchase) }}</small>
+                <small v-if="item.variantLabel" class="text-subtle">{{
+                  item.variantLabel
+                }}</small>
+                <small class="text-subtle"
+                  >{{ item.quantity }} ×
+                  {{ price(item.priceAtPurchase) }}</small
+                >
               </div>
               <strong>{{ price(item.priceAtPurchase * item.quantity) }}</strong>
             </li>
@@ -162,35 +255,65 @@ async function downloadInvoice() {
 
         <div class="stack">
           <section class="card card-pad">
-            <h2 class="block-title">{{ t('checkout.orderSummary') }}</h2>
+            <h2 class="block-title">{{ t("checkout.orderSummary") }}</h2>
             <dl class="totals">
-              <div><dt>{{ t('cart.subtotal') }}</dt><dd>{{ price(order.subTotal) }}</dd></div>
               <div>
-                <dt>{{ t('cart.shipping') }}</dt>
-                <dd>{{ order.shippingFee > 0 ? price(order.shippingFee) : t('checkout.free') }}</dd>
+                <dt>{{ t("cart.subtotal") }}</dt>
+                <dd>{{ price(order.subTotal) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("cart.shipping") }}</dt>
+                <dd>
+                  {{
+                    order.shippingFee > 0
+                      ? price(order.shippingFee)
+                      : t("checkout.free")
+                  }}
+                </dd>
               </div>
               <div v-if="order.discountAmount > 0" class="totals__discount">
-                <dt>{{ t('checkout.discount') }}<template v-if="order.couponCode"> ({{ order.couponCode }})</template></dt>
+                <dt>
+                  {{ t("checkout.discount")
+                  }}<template v-if="order.couponCode">
+                    ({{ order.couponCode }})</template
+                  >
+                </dt>
                 <dd>-{{ price(order.discountAmount) }}</dd>
               </div>
-              <div class="totals__total"><dt>{{ t('cart.total') }}</dt><dd>{{ price(order.totalAmount) }}</dd></div>
+              <div class="totals__total">
+                <dt>{{ t("cart.total") }}</dt>
+                <dd>{{ price(order.totalAmount) }}</dd>
+              </div>
             </dl>
-            <p class="payment"><Icon name="ph:hand-coins" aria-hidden="true" />{{ t(`orders.payment.${order.paymentMethod}`) }}</p>
+            <p class="payment">
+              <Icon name="ph:hand-coins" aria-hidden="true" />{{
+                t(`orders.payment.${order.paymentMethod}`)
+              }}
+            </p>
           </section>
 
           <section v-if="address" class="card card-pad">
-            <h2 class="block-title">{{ t('checkout.shippingAddress') }}</h2>
+            <h2 class="block-title">{{ t("checkout.shippingAddress") }}</h2>
             <address class="addr">
               <strong>{{ address.fullName }}</strong>
               <span>{{ address.streetAddress }}</span>
-              <span>{{ city }}<template v-if="governorate">{{ lang === 'ar' ? '، ' : ', ' }}{{ governorate }}</template></span>
-              <span v-if="address.landmark" class="text-subtle">{{ address.landmark }}</span>
-              <span dir="ltr" class="addr__phone">{{ address.phoneNumber }}</span>
+              <span
+                >{{ city
+                }}<template v-if="governorate"
+                  >{{ lang === "ar" ? "، " : ", " }}{{ governorate }}</template
+                ></span
+              >
+              <span v-if="address.landmark" class="text-subtle">{{
+                address.landmark
+              }}</span>
+              <span dir="ltr" class="addr__phone">{{
+                address.phoneNumber
+              }}</span>
             </address>
           </section>
 
           <section v-if="order.notes" class="card card-pad">
-            <h2 class="block-title">{{ t('checkout.notes') }}</h2>
+            <h2 class="block-title">{{ t("checkout.notes") }}</h2>
             <p class="text-muted">{{ order.notes }}</p>
           </section>
         </div>
@@ -259,7 +382,11 @@ async function downloadInvoice() {
   gap: var(--space-4);
   padding: var(--space-6);
   border-color: var(--color-success);
-  background: linear-gradient(135deg, var(--color-success-soft), var(--color-surface));
+  background: linear-gradient(
+    135deg,
+    var(--color-success-soft),
+    var(--color-surface)
+  );
   overflow: hidden;
 }
 .success__icon {
@@ -312,7 +439,7 @@ async function downloadInvoice() {
 }
 .tracker::before,
 .tracker::after {
-  content: '';
+  content: "";
   position: absolute;
   inset-block-start: 1.25rem;
   inset-inline-start: 12.5%;

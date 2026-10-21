@@ -1,48 +1,73 @@
 <script setup lang="ts">
-import type { Order, OrderStatus } from '~/types/models';
+import type { Order, OrderStatus } from "~/types/models";
 
 const { t } = useI18n();
 const { price, date, number } = useLocalized();
 const shop = useShopService();
 
-useHead({ title: t('account.orders') });
+useHead({ title: t("account.orders") });
 
-const { data: orders, status } = await useLazyAsyncData('my-orders', () => shop.myOrders(), {
-  server: false,
-  default: () => [] as Order[],
-});
+const { data: orders, status } = await useLazyAsyncData(
+  "my-orders",
+  () => shop.myOrders(),
+  {
+    server: false,
+    default: () => [] as Order[],
+  },
+);
 
-type Filter = 'all' | 'active' | 'delivered' | 'cancelled';
-const filter = ref<Filter>('all');
-const ACTIVE: OrderStatus[] = ['pending', 'processing', 'shipped', 'redelivery'];
+type Filter = "all" | "active" | "delivered" | "cancelled";
+const filter = ref<Filter>("all");
+const ACTIVE: OrderStatus[] = [
+  "pending",
+  "processing",
+  "shipped",
+  "redelivery",
+];
 const matches = (order: Order, f: Filter) =>
-  f === 'all' ||
-  (f === 'active' && ACTIVE.includes(order.status)) ||
-  (f === 'delivered' && order.status === 'delivered') ||
-  (f === 'cancelled' && (order.status === 'cancelled' || order.status === 'returned'));
+  f === "all" ||
+  (f === "active" && ACTIVE.includes(order.status)) ||
+  (f === "delivered" && order.status === "delivered") ||
+  (f === "cancelled" &&
+    (order.status === "cancelled" || order.status === "returned"));
 
 const tabs = computed(() =>
-  (['all', 'active', 'delivered', 'cancelled'] as Filter[]).map((key) => ({
+  (["all", "active", "delivered", "cancelled"] as Filter[]).map((key) => ({
     key,
     label: t(`orders.filters.${key}`),
     count: orders.value.filter((o) => matches(o, key)).length,
   })),
 );
-const visible = computed(() => orders.value.filter((o) => matches(o, filter.value)));
+const visible = computed(() =>
+  orders.value.filter((o) => matches(o, filter.value)),
+);
 const thumbs = (order: Order) => (order.items ?? []).slice(0, 4);
 </script>
 
 <template>
-  <AccountSection :title="t('account.orders')" :description="t('orders.hint')" flat>
+  <AccountSection
+    :title="t('account.orders')"
+    :description="t('orders.hint')"
+    flat
+  >
     <BaseTabs v-if="orders.length" v-model="filter" :tabs="tabs" />
 
     <div v-if="isFetching(status) && !orders.length" class="stack">
-      <div v-for="n in 3" :key="n" class="skeleton" style="block-size: 9rem; border-radius: var(--radius-lg)" />
+      <div
+        v-for="n in 3"
+        :key="n"
+        class="skeleton"
+        style="block-size: 9rem; border-radius: var(--radius-lg)"
+      />
     </div>
 
     <div v-else-if="!visible.length" class="card">
-      <BaseEmptyState icon="ph:package" :title="t('orders.emptyTitle')" :description="t('orders.emptyText')">
-        <BaseButton to="/products">{{ t('cart.startShopping') }}</BaseButton>
+      <BaseEmptyState
+        icon="ph:package"
+        :title="t('orders.emptyTitle')"
+        :description="t('orders.emptyText')"
+      >
+        <BaseButton to="/products">{{ t("cart.startShopping") }}</BaseButton>
       </BaseEmptyState>
     </div>
 
@@ -51,8 +76,12 @@ const thumbs = (order: Order) => (order.items ?? []).slice(0, 4);
         <NuxtLink :to="`/account/orders/${order.id}`" class="order card">
           <div class="order__head">
             <div>
-              <p class="order__number">#{{ shortOrderNumber(order.orderNumber) }}</p>
-              <time class="order__date" :datetime="order.createdAt">{{ date(order.createdAt) }}</time>
+              <p class="order__number">
+                #{{ shortOrderNumber(order.orderNumber) }}
+              </p>
+              <time class="order__date" :datetime="order.createdAt">{{
+                date(order.createdAt)
+              }}</time>
             </div>
             <OrderStatusBadge :status="order.status" />
           </div>
@@ -69,13 +98,27 @@ const thumbs = (order: Order) => (order.items ?? []).slice(0, 4);
                 rounded
                 class="order__thumb"
               />
-              <span v-if="(order.items?.length ?? 0) > 4" class="order__more">+{{ (order.items?.length ?? 0) - 4 }}</span>
+              <span v-if="(order.items?.length ?? 0) > 4" class="order__more"
+                >+{{ (order.items?.length ?? 0) - 4 }}</span
+              >
             </div>
             <div class="order__total">
-              <span class="text-subtle">{{ t('orders.itemsCount', { count: number(order.items?.length ?? order.itemsCount ?? 0) }, order.items?.length ?? 0) }}</span>
+              <span class="text-subtle">{{
+                t(
+                  "orders.itemsCount",
+                  {
+                    count: number(order.items?.length ?? order.itemsCount ?? 0),
+                  },
+                  order.items?.length ?? 0,
+                )
+              }}</span>
               <strong>{{ price(order.totalAmount) }}</strong>
             </div>
-            <Icon name="ph:caret-right" class="order__chevron flip-rtl" aria-hidden="true" />
+            <Icon
+              name="ph:caret-right"
+              class="order__chevron flip-rtl"
+              aria-hidden="true"
+            />
           </div>
         </NuxtLink>
       </li>
