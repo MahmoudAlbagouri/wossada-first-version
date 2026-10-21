@@ -1,234 +1,86 @@
-<template>
-  <div class="not-found-page" dir="rtl">
-    <div class="container">
-      <!-- Illustration / Visual -->
-      <div class="visual-content animate-float">
-        <svg
-          width="280"
-          height="280"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#987226"
-          stroke-width="1"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="10" stroke-dasharray="4 4" />
-          <path d="M12 8v4M12 16h.01" stroke-width="3" />
-          <path
-            d="M9 10a3 3 0 0 1 6 0v4a3 3 0 0 1-6 0z"
-            fill="#fff"
-            stroke="#987226"
-          />
-          <path d="M15 10l4-4M9 10l-4-4" stroke-opacity="0.5" />
-        </svg>
-      </div>
+<script setup lang="ts">
+import type { NuxtError } from '#app';
 
-      <!-- Text Content -->
-      <div class="text-content">
-        <h1 class="error-code">404</h1>
-        <h2 class="error-title">عذراً! الصفحة غير موجودة</h2>
-        <p class="error-message">
-          يبدو أن الرابط الذي تحاول الوصول إليه قد تم تغييره أو حذفه، أو أنك
-          أدخلت رابطاً خاطئاً.
-        </p>
+const props = defineProps<{ error: NuxtError }>();
+const { t } = useI18n();
+const { brandName } = useBrand();
 
-        <div class="action-buttons">
-          <NuxtLink to="/" class="btn-primary">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            العودة للرئيسية
-          </NuxtLink>
+const is404 = computed(() => props.error.statusCode === 404);
 
-          <button @click="$router.back()" class="btn-secondary">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            الرجوع للخلف
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
-// يمكن إضافة منطق SEO هنا إذا لزم الأمر
 useHead({
-  title: "صفحة غير موجودة - 404",
-  meta: [{ name: "description", content: "الصفحة التي تبحث عنها غير موجودة." }],
+  title: () => (is404.value ? t('errorPage.notFoundTitle') : t('errorPage.title')),
+  titleTemplate: (title?: string) => `${title} | ${brandName.value}`,
 });
+useSeoMeta({ robots: 'noindex, nofollow' });
+
+const goHome = () => clearError({ redirect: '/' });
 </script>
 
+<template>
+  <NuxtLayout>
+    <section class="container error">
+      <div class="error__code" aria-hidden="true">{{ error.statusCode || 500 }}</div>
+      <div class="error__icon" aria-hidden="true">
+        <Icon :name="is404 ? 'ph:magnifying-glass' : 'ph:plug-charging'" />
+      </div>
+      <h1 class="error__title">{{ is404 ? t('errorPage.notFoundTitle') : t('errorPage.title') }}</h1>
+      <p class="error__text">{{ is404 ? t('errorPage.notFoundText') : t('errorPage.text') }}</p>
+      <div class="error__actions">
+        <BaseButton icon="ph:house" @click="goHome">{{ t('errorPage.home') }}</BaseButton>
+        <BaseButton variant="outline" icon="ph:storefront" @click="clearError({ redirect: '/products' })">
+          {{ t('nav.allProducts') }}
+        </BaseButton>
+      </div>
+    </section>
+  </NuxtLayout>
+</template>
+
 <style scoped>
-.not-found-page {
-  min-height: 100vh;
+.error {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: #f7f5f0; /* نفس خلفية المشروع */
-  font-family: "Cairo", sans-serif;
-  padding: 20px;
   text-align: center;
-  overflow: hidden;
+  gap: var(--space-4);
+  padding-block: clamp(3rem, 2rem + 6vw, 7rem);
 }
-
-.container {
-  max-width: 600px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 40px;
-}
-
-/* Visual Animation */
-.visual-content {
-  position: relative;
-  animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-  0% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-  100% {
-    transform: translateY(0px);
-  }
-}
-
-/* Typography */
-.error-code {
-  font-size: 120px;
-  font-weight: 900;
-  color: #987226; /* اللون الأساسي الذهبي/البني */
-  line-height: 1;
-  margin: 0;
-  opacity: 0.1; /* تأثير شفاف للخلفية */
+.error__code {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 0;
-  pointer-events: none;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  transform: translateY(-60%);
+  font-size: clamp(8rem, 5rem + 18vw, 16rem);
+  font-weight: var(--weight-black);
+  line-height: 1;
+  color: var(--color-primary-soft);
+  z-index: -1;
+  user-select: none;
 }
-
-.text-content {
-  position: relative;
-  z-index: 1;
+.error__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 5rem;
+  block-size: 5rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  color: var(--color-primary);
+  font-size: 2.4rem;
+  animation: float 4s ease-in-out infinite;
+}
+.error__title {
+  font-size: var(--text-3xl);
+}
+.error__text {
+  max-inline-size: 46ch;
+  color: var(--color-text-muted);
+}
+.error__actions {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.error-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: #3a2e1a;
-  margin: 0;
-}
-
-.error-message {
-  font-size: 18px;
-  color: #666;
-  line-height: 1.6;
-  max-width: 450px;
-  margin: 0;
-}
-
-/* Buttons */
-.action-buttons {
-  display: flex;
-  gap: 16px;
-  margin-top: 24px;
   flex-wrap: wrap;
   justify-content: center;
-}
-
-.btn-primary,
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-family: "Cairo", sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: none;
-}
-
-.btn-primary {
-  background: #987226;
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(152, 114, 38, 0.3);
-}
-
-.btn-primary:hover {
-  background: #7a5b1e;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(152, 114, 38, 0.4);
-}
-
-.btn-secondary {
-  background: #fff;
-  color: #3a2e1a;
-  border: 2px solid #e8e0cf;
-}
-
-.btn-secondary:hover {
-  border-color: #987226;
-  color: #987226;
-  background: #fdfaf4;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .error-code {
-    font-size: 80px;
-  }
-
-  .error-title {
-    font-size: 24px;
-  }
-
-  .error-message {
-    font-size: 16px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    width: 100%;
-    justify-content: center;
-  }
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
 }
 </style>

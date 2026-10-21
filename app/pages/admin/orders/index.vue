@@ -1,495 +1,331 @@
-<template>
-  <div class="orders-page" dir="rtl">
-    <!-- Header -->
-    <div class="page-header">
-      <div class="header-info">
-        <h1 class="page-title">إدارة الطلبات</h1>
-        <span class="orders-count" v-if="store.orders.length">
-          {{ store.orders.length }} طلب
-        </span>
-      </div>
-      <button
-        class="btn-refresh"
-        @click="store.fetchAdminOrders()"
-        :disabled="store.loading"
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M23 4v6h-6"></path>
-          <path d="M1 20v-6h6"></path>
-          <path
-            d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-          ></path>
-        </svg>
-        تحديث
-      </button>
-    </div>
+<script setup lang="ts">
+import { refDebounced } from '@vueuse/core';
+import type { Order, OrderStatus } from '~/types/models';
+import type { TableColumn } from '~/types/ui';
 
-    <!-- Loading -->
-    <div v-if="store.loading && !store.orders.length" class="loading-grid">
-      <div v-for="i in 6" :key="i" class="skeleton-card"></div>
-    </div>
+const admin = useAdminService();
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const { price, dateTime, placeName } = useLocalized();
 
-    <!-- Error -->
-    <div v-else-if="store.error" class="error-state">
-      <p>{{ store.error }}</p>
-      <button class="btn-retry" @click="store.fetchAdminOrders()">
-        إعادة المحاولة
-      </button>
-    </div>
+useHead({ title: 'الطلبات' });
 
-    <!-- Table -->
-    <div v-else class="table-wrapper">
-      <table class="orders-table">
-        <thead>
-          <tr>
-            <th>رقم الطلب</th>
-            <th>العميل</th>
-            <th>التاريخ</th>
-            <th>الإجمالي</th>
-            <th>الحالة</th>
-            <th>تغيير الحالة</th>
-            <th>الإجراءات</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="order in store.orders" :key="order.id" class="order-row">
-            <!-- Order Number -->
-            <td>
-              <span class="order-number"
-                >#{{ order.orderNumber.split("-").pop() }}</span
-              >
-            </td>
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: 'قيد المراجعة',
+  processing: 'جاري التجهيز',
+  shipped: 'تم الشحن',
+  delivered: 'تم التوصيل',
+  cancelled: 'ملغي',
+  returned: 'مسترجع',
+  redelivery: 'إعادة توصيل',
+};
 
-            <!-- Customer Info -->
-            <td>
-              <div class="customer-info">
-                <span class="c-name">{{
-                  order.user?.name || order.shippingAddress?.fullName
-                }}</span>
-                <span class="c-phone">{{
-                  order.user?.phone || order.shippingAddress?.phoneNumber
-                }}</span>
-              </div>
-            </td>
+const status = ref<OrderStatus | 'all'>((route.query.status as OrderStatus) || 'all');
+const search = ref('');
+const debouncedSearch = refDebounced(search, 350);
+const page = ref(1);
+watch([status, debouncedSearch], () => (page.value = 1));
 
-            <!-- Date -->
-            <td class="date-cell">
-              {{ formatDate(order.createdAt) }}
-            </td>
+const query = computed(() => ({
+  page: page.value,
+  limit: 15,
+  status: status.value === 'all' ? undefined : status.value,
+  search: debouncedSearch.value.trim() || undefined,
+}));
 
-            <!-- Total -->
-            <td class="total-cell">
-              {{ formatCurrency(order.totalAmount) }}
-              <span v-if="order.couponCode" class="coupon-tag">{{
-                order.couponCode
-              }}</span>
-            </td>
-
-            <!-- Status Badge -->
-            <td>
-              <span
-                class="status-badge"
-                :class="store.getStatusClass(order.status)"
-              >
-                {{ store.getStatusLabel(order.status) }}
-              </span>
-            </td>
-
-            <!-- Change Status Dropdown -->
-            <td>
-              <select
-                v-model="order.tempStatus"
-                @change="handleStatusChange(order)"
-                class="status-select"
-                :disabled="
-                  order.status === 'delivered' || order.status === 'cancelled'
-                "
-              >
-                <option value="pending">قيد المراجعة</option>
-                <option value="processing">جاري التجهيز</option>
-                <option value="shipped">تم الشحن</option>
-                <option value="delivered">تم التسليم</option>
-                <option value="cancelled">ملغي</option>
-              </select>
-            </td>
-
-            <!-- Actions -->
-            <td class="actions-cell">
-              <button
-                class="action-btn view-btn"
-                title="عرض التفاصيل"
-                @click="viewOrderDetails(order)"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-              </button>
-            </td>
-          </tr>
-          <tr v-if="!store.orders.length">
-            <td colspan="7" class="empty-row">لا توجد طلبات حالياً</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Toast -->
-    <Teleport to="body">
-      <transition name="toast">
-        <div v-if="toast.show" class="toast" :class="toast.type">
-          {{ toast.message }}
-        </div>
-      </transition>
-    </Teleport>
-  </div>
-</template>
-
-<script setup>
-const store = useOrdersStore();
-
-onMounted(() => {
-  store.fetchAdminOrders();
+const { data, status: fetchStatus, refresh } = await useAsyncData('admin-orders', () => admin.orders.list(query.value), {
+  server: false,
+  watch: [query],
 });
 
-// Helpers
-const formatDate = (dateString) => {
-  if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString("en-EG", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+const tabs = computed(() => [
+  { key: 'all' as const, label: 'الكل' },
+  ...ORDER_STATUSES.map((key) => ({ key, label: STATUS_LABELS[key], icon: ORDER_STATUS_META[key].icon })),
+]);
 
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat("en-EG", {
-    style: "currency",
-    currency: "EGP",
-  }).format(amount);
-};
+const columns: TableColumn[] = [
+  { key: 'number', label: 'الطلب' },
+  { key: 'customer', label: 'العميل' },
+  { key: 'city', label: 'المدينة', hideMobile: true },
+  { key: 'date', label: 'التاريخ', hideMobile: true },
+  { key: 'status', label: 'الحالة' },
+  { key: 'total', label: 'الإجمالي', align: 'end' },
+  { key: 'actions', label: '', align: 'end', width: '60px' },
+];
 
-// Toast
-const toast = reactive({ show: false, message: "", type: "success" });
-const showToast = (message, type = "success") => {
-  toast.message = message;
-  toast.type = type;
-  toast.show = true;
-  setTimeout(() => (toast.show = false), 3000);
-};
+// --- Details drawer ---
+const drawerOpen = ref(false);
+const selected = ref<Order | null>(null);
+const loadingOrder = ref(false);
+const nextStatus = ref<OrderStatus>('pending');
+const trackingNumber = ref('');
+const saving = ref(false);
+const downloading = ref(false);
 
-// Actions
-const handleStatusChange = async (order) => {
-  if (order.tempStatus === order.status) return;
-
-  const result = await store.updateOrderStatus(order.id, order.tempStatus);
-  if (result.success) {
-    order.status = order.tempStatus; // Sync UI
-    showToast("تم تحديث حالة الطلب بنجاح");
-  } else {
-    showToast(result.error || "فشل تحديث الحالة", "error");
-    order.tempStatus = order.status; // Revert on error
+async function open(id: string) {
+  drawerOpen.value = true;
+  loadingOrder.value = true;
+  try {
+    selected.value = await admin.orders.get(id);
+    nextStatus.value = selected.value.status;
+    trackingNumber.value = selected.value.trackingNumber ?? '';
+  } catch (error) {
+    toast.fromError(error);
+    drawerOpen.value = false;
+  } finally {
+    loadingOrder.value = false;
   }
-};
+}
 
-const viewOrderDetails = (order) => {
-  // يمكن توجيه المستخدم لصفحة تفاصيل أو فتح مودال
-  // navigateTo(`/admin/orders/${order.id}`);
-  console.log("Viewing order:", order);
-  showToast("ميزة عرض التفاصيل قيد التطوير", "info");
-};
+watch(drawerOpen, (isOpen) => {
+  if (!isOpen && route.query.open) router.replace({ query: { ...route.query, open: undefined } });
+});
+onMounted(() => {
+  if (typeof route.query.open === 'string') open(route.query.open);
+});
+
+const isTerminal = computed(() => !!selected.value && TERMINAL_STATUSES.includes(selected.value.status));
+const statusOptions = computed(() => ORDER_STATUSES.map((value) => ({ value, label: STATUS_LABELS[value] })));
+const dirty = computed(
+  () =>
+    !!selected.value &&
+    (nextStatus.value !== selected.value.status || trackingNumber.value.trim() !== (selected.value.trackingNumber ?? '')),
+);
+
+async function saveStatus() {
+  if (!selected.value || !dirty.value) return;
+  saving.value = true;
+  try {
+    selected.value = await admin.orders.updateStatus(selected.value.id, {
+      status: nextStatus.value,
+      trackingNumber: trackingNumber.value.trim() || undefined,
+    });
+    toast.success('تم تحديث حالة الطلب وإشعار العميل');
+    await refresh();
+  } catch (error) {
+    toast.fromError(error);
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function downloadInvoice() {
+  if (!selected.value) return;
+  downloading.value = true;
+  try {
+    saveBlob(await admin.orders.invoice(selected.value.id), `invoice-${selected.value.orderNumber}.pdf`);
+  } catch (error) {
+    toast.fromError(error);
+  } finally {
+    downloading.value = false;
+  }
+}
+
+const city = (order: Order) =>
+  order.shippingSnapshot
+    ? placeName({ nameAr: order.shippingSnapshot.cityNameAr, nameEn: order.shippingSnapshot.cityNameEn })
+    : '—';
 </script>
 
+<template>
+  <AdminPage title="الطلبات" description="تابع الطلبات وحدّث حالتها؛ العميل يصله إشعار مع كل تغيير.">
+    <BaseTabs v-model="status" :tabs="tabs" />
+    <div class="toolbar">
+      <BaseInput v-model="search" icon="ph:magnifying-glass" placeholder="ابحث برقم الطلب، اسم العميل أو الموبايل…" class="toolbar__search" />
+      <span v-if="data" class="text-subtle">{{ data.meta.totalItems }} طلب</span>
+    </div>
+
+    <DataTable :columns="columns" :rows="data?.data ?? []" :loading="fetchStatus === 'pending'" empty-title="لا توجد طلبات مطابقة" empty-icon="ph:receipt">
+      <template #cell-number="{ row }">
+        <button type="button" class="order-link" @click="open(row.id)">#{{ shortOrderNumber(row.orderNumber) }}</button>
+      </template>
+      <template #cell-customer="{ row }">
+        <div class="customer">
+          <strong>{{ row.user?.name ?? row.shippingSnapshot?.fullName ?? '—' }}</strong>
+          <span dir="ltr">{{ row.shippingSnapshot?.phoneNumber ?? row.user?.phone ?? '' }}</span>
+        </div>
+      </template>
+      <template #cell-city="{ row }">{{ city(row) }}</template>
+      <template #cell-date="{ row }"><span class="text-subtle">{{ dateTime(row.createdAt) }}</span></template>
+      <template #cell-status="{ row }"><OrderStatusBadge :status="row.status" size="sm" /></template>
+      <template #cell-total="{ row }"><strong>{{ price(row.totalAmount) }}</strong></template>
+      <template #cell-actions="{ row }">
+        <BaseButton variant="ghost" size="sm" icon="ph:eye" icon-only label="التفاصيل" @click="open(row.id)" />
+      </template>
+    </DataTable>
+
+    <BasePagination v-if="data" v-model:page="page" :total-pages="data.meta.totalPages" />
+
+    <BaseDrawer v-model="drawerOpen" side="end" width="560px" :title="selected ? `طلب #${shortOrderNumber(selected.orderNumber)}` : 'تفاصيل الطلب'">
+      <div v-if="loadingOrder || !selected" class="stack">
+        <div v-for="n in 4" :key="n" class="skeleton" style="block-size: 5rem" />
+      </div>
+      <div v-else class="details">
+        <div class="details__head">
+          <OrderStatusBadge :status="selected.status" />
+          <span class="text-subtle" dir="ltr">{{ selected.orderNumber }}</span>
+          <span class="text-subtle">{{ dateTime(selected.createdAt) }}</span>
+        </div>
+
+        <section class="details__box">
+          <h3>تحديث الحالة</h3>
+          <BaseAlert v-if="isTerminal" tone="warning">هذا الطلب {{ STATUS_LABELS[selected.status] }} وتم إرجاع المخزون، لا يمكن تغيير حالته.</BaseAlert>
+          <template v-else>
+            <BaseSelect v-model="nextStatus" :options="statusOptions" label="الحالة الجديدة" />
+            <BaseInput v-model="trackingNumber" label="رقم الشحنة (اختياري)" dir="ltr" icon="ph:barcode" />
+            <BaseButton :disabled="!dirty" :loading="saving" icon="ph:check" @click="saveStatus">حفظ الحالة</BaseButton>
+          </template>
+        </section>
+
+        <section class="details__box">
+          <h3>العميل والتوصيل</h3>
+          <dl class="kv">
+            <div><dt>العميل</dt><dd>{{ selected.user?.name ?? '—' }}</dd></div>
+            <div><dt>البريد</dt><dd dir="ltr">{{ selected.user?.email ?? '—' }}</dd></div>
+            <template v-if="selected.shippingSnapshot">
+              <div><dt>المستلم</dt><dd>{{ selected.shippingSnapshot.fullName }}</dd></div>
+              <div><dt>الموبايل</dt><dd dir="ltr"><a :href="`tel:${selected.shippingSnapshot.phoneNumber}`">{{ selected.shippingSnapshot.phoneNumber }}</a></dd></div>
+              <div><dt>العنوان</dt><dd>{{ selected.shippingSnapshot.streetAddress }}، {{ selected.shippingSnapshot.cityNameAr }}، {{ selected.shippingSnapshot.governorateNameAr }}</dd></div>
+              <div v-if="selected.shippingSnapshot.landmark"><dt>علامة مميزة</dt><dd>{{ selected.shippingSnapshot.landmark }}</dd></div>
+            </template>
+            <div><dt>الدفع</dt><dd>{{ selected.paymentMethod === 'cod' ? 'الدفع عند الاستلام' : 'دفع إلكتروني' }}</dd></div>
+            <div v-if="selected.notes"><dt>ملاحظات</dt><dd>{{ selected.notes }}</dd></div>
+          </dl>
+        </section>
+
+        <section class="details__box">
+          <h3>المنتجات ({{ selected.items?.length ?? 0 }})</h3>
+          <ul class="items">
+            <li v-for="item in selected.items" :key="item.id" class="item">
+              <BaseImage :src="item.productImage ?? item.product?.mainImage" alt="" :width="56" :height="56" ratio="1" rounded class="item__img" />
+              <div class="item__info">
+                <strong class="line-clamp-2">{{ item.productName }}</strong>
+                <small v-if="item.variantLabel" class="text-subtle">{{ item.variantLabel }}</small>
+                <small v-if="item.sku" class="text-subtle" dir="ltr">{{ item.sku }}</small>
+              </div>
+              <span class="item__qty">{{ item.quantity }} × {{ price(item.priceAtPurchase) }}</span>
+            </li>
+          </ul>
+          <dl class="kv kv--totals">
+            <div><dt>المجموع الفرعي</dt><dd>{{ price(selected.subTotal) }}</dd></div>
+            <div><dt>الشحن</dt><dd>{{ price(selected.shippingFee) }}</dd></div>
+            <div v-if="selected.discountAmount > 0">
+              <dt>الخصم <template v-if="selected.couponCode">({{ selected.couponCode }})</template></dt>
+              <dd>-{{ price(selected.discountAmount) }}</dd>
+            </div>
+            <div class="kv__total"><dt>الإجمالي</dt><dd>{{ price(selected.totalAmount) }}</dd></div>
+          </dl>
+        </section>
+      </div>
+      <template v-if="selected && !loadingOrder" #footer>
+        <BaseButton variant="outline" icon="ph:file-pdf" :loading="downloading" @click="downloadInvoice">تحميل الفاتورة</BaseButton>
+      </template>
+    </BaseDrawer>
+  </AdminPage>
+</template>
+
 <style scoped>
-/* Layout & Base */
-.orders-page {
-  padding: 24px;
-  min-height: 100vh;
-  background: #f8f9fb;
-  font-family: "Cairo", sans-serif;
-}
-.page-header {
+.toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 28px;
+  gap: var(--space-3);
 }
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.toolbar__search {
+  flex: 1;
+  max-inline-size: 420px;
 }
-.page-title {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #1a1a2e;
-  margin: 0;
+.order-link {
+  font-weight: var(--weight-bold);
+  color: var(--color-primary);
 }
-.orders-count {
-  background: #e8f0fe;
-  color: #4361ee;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.order-link:hover {
+  text-decoration: underline;
 }
-.btn-refresh {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border: 1px solid #e0e3ef;
-  color: #555;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-refresh:hover:not(:disabled) {
-  background: #f4f6fb;
-  border-color: #4361ee;
-  color: #4361ee;
-}
-.btn-refresh:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Skeleton & Error */
-.loading-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
-}
-.skeleton-card {
-  height: 80px;
-  border-radius: 10px;
-  background: linear-gradient(90deg, #e8eaf0 25%, #f0f2f8 50%, #e8eaf0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
-}
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-.error-state {
-  text-align: center;
-  padding: 48px;
-  color: #e63946;
-}
-.btn-retry {
-  margin-top: 12px;
-  padding: 8px 24px;
-  border: 2px solid #e63946;
-  background: transparent;
-  color: #e63946;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-/* Table */
-.table-wrapper {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
-  overflow-x: auto;
-}
-.orders-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-.orders-table thead th {
-  background: #f4f6fb;
-  padding: 14px 16px;
-  text-align: right;
-  font-weight: 700;
-  color: #555;
-  border-bottom: 1px solid #e8eaf0;
-}
-.order-row:hover {
-  background: #f9fafb;
-}
-.orders-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #f0f2f8;
-  vertical-align: middle;
-}
-
-/* Cells */
-.order-number {
-  font-family: monospace;
-  font-weight: 700;
-  color: #4361ee;
-}
-.customer-info {
+.customer {
   display: flex;
   flex-direction: column;
 }
-.c-name {
-  font-weight: 600;
-  color: #1a1a2e;
+.customer span {
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
 }
-.c-phone {
-  font-size: 0.8rem;
-  color: #888;
-  direction: ltr;
-  text-align: right;
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
-.date-cell {
-  color: #666;
-  font-size: 0.85rem;
+.details__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
 }
-.total-cell {
-  font-weight: 700;
-  color: #1a1a2e;
+.details__box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
 }
-.coupon-tag {
-  display: block;
-  font-size: 0.7rem;
-  color: #059669;
-  background: #ecfdf5;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-top: 4px;
-  width: fit-content;
+.details__box h3 {
+  font-size: var(--text-base);
 }
-
-/* Status Badge */
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-block;
+.kv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
 }
-.status-pending {
-  background: #fffbeb;
-  color: #b45309;
+.kv div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
-.status-processing {
-  background: #eff6ff;
-  color: #1d4ed8;
+.kv dt {
+  flex-shrink: 0;
+  color: var(--color-text-subtle);
 }
-.status-shipped {
-  background: #f0fdf4;
-  color: #15803d;
+.kv dd {
+  text-align: end;
 }
-.status-delivered {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
+.kv a {
+  color: var(--color-primary);
 }
-.status-cancelled {
-  background: #fef2f2;
-  color: #b91c1c;
+.kv--totals {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px dashed var(--color-border);
 }
-
-/* Select */
-.status-select {
-  padding: 6px 10px;
-  border: 1px solid #e0e3ef;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  color: #444;
-  background: #fff;
-  cursor: pointer;
-  outline: none;
+.kv__total {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
 }
-.status-select:focus {
-  border-color: #4361ee;
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
-.status-select:disabled {
-  background: #f5f5f5;
-  color: #aaa;
-  cursor: not-allowed;
-}
-
-/* Actions */
-.actions-cell {
-  width: 60px;
-  text-align: center;
-}
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
+.item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  margin: 0 auto;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
 }
-.view-btn {
-  background: #f0f9ff;
-  color: #0284c7;
+.item__img {
+  inline-size: 3.5rem;
+  flex-shrink: 0;
 }
-.view-btn:hover {
-  background: #0284c7;
-  color: #fff;
+.item__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-inline-size: 0;
 }
-.empty-row {
-  text-align: center;
-  color: #aaa;
-  padding: 40px 0 !important;
-}
-
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 28px;
-  border-radius: 12px;
-  font-size: 0.92rem;
-  font-weight: 600;
-  z-index: 9999;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-.toast.success {
-  background: #2d6a4f;
-  color: #fff;
-}
-.toast.error {
-  background: #e63946;
-  color: #fff;
-}
-.toast.info {
-  background: #4361ee;
-  color: #fff;
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.3s ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(20px);
+.item__qty {
+  white-space: nowrap;
+  font-weight: var(--weight-semibold);
 }
 </style>

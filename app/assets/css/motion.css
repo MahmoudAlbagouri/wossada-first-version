@@ -1,0 +1,183 @@
+/* =====================================================================
+   Animations & transitions. Everything is disabled for users who ask
+   the OS for reduced motion.
+   ===================================================================== */
+
+@keyframes skeleton-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes shimmer-text {
+  to {
+    background-position: 200% center;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(152 114 38 / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgb(152 114 38 / 0);
+  }
+}
+
+/* --- Scroll reveal (see plugins/03.reveal.ts) ---
+   An animation (not a transition) so it never fights a component's own
+   transitions; `backwards` fill hands transform back to hover styles after. */
+[data-reveal]:not([data-revealed]) {
+  opacity: 0;
+}
+[data-reveal][data-revealed] {
+  animation: fade-up 0.7s var(--ease-out) var(--reveal-delay, 0ms) backwards;
+}
+
+/* --- Route transitions (nuxt.config app.pageTransition) --- */
+.page-enter-active,
+.page-leave-active,
+.layout-enter-active,
+.layout-leave-active {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+.page-enter-from,
+.layout-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-leave-to,
+.layout-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* --- Reusable <Transition name="..."> presets --- */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.scale-enter-active {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-spring);
+}
+.scale-leave-active {
+  transition:
+    opacity var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+}
+.scale-enter-from,
+.scale-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.list-leave-active {
+  position: absolute;
+}
+
+/* Micro-interaction helpers */
+.hover-lift {
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+@media (hover: hover) {
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.animate-pop {
+  animation: pop 0.45s var(--ease-spring);
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+  }
+}

@@ -1,81 +1,148 @@
-export default defineNuxtConfig({
-  compatibilityDate: "2025-07-15",
-  devtools: { enabled: true },
+const apiBase = process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3006';
+const siteUrl = (process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
-  srcDir: "app/",
+/** Hosts @nuxt/image may fetch and optimize (the API + any extra CDN). */
+const imageDomains = [
+  new URL(apiBase).host,
+  ...(process.env.NUXT_IMAGE_DOMAINS || '').split(',').map((d) => d.trim()).filter(Boolean),
+];
+
+export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
+  srcDir: 'app/',
 
   modules: [
-    "@nuxt/image",
-    "nuxt-swiper",
-    "@nuxtjs/i18n",
-    "@pinia/nuxt",
-    "pinia-plugin-persistedstate/nuxt",
-    "@nuxt/icon",
-    "@formkit/auto-animate",
-    "@nuxtjs/sitemap",
-    "@nuxtjs/robots",
+    '@nuxt/image',
+    '@nuxtjs/i18n',
+    '@pinia/nuxt',
+    '@nuxt/icon',
+    '@formkit/auto-animate',
+    '@nuxtjs/sitemap',
+    '@nuxtjs/robots',
   ],
-  app: {
-    head: {
-      htmlAttrs: {
-        dir: "rtl", // السيرفر هيبعت الصفحة rtl فوراً قبل ما الـ JS يشتغل
-        lang: "ar",
-      },
-    },
+
+  typescript: {
+    strict: true,
+    typeCheck: false,
   },
 
-  i18n: {
-    locales: [
-      {
-        code: "ar",
-        iso: "ar-SA",
-        name: "العربية",
-        file: "ar.json",
-        dir: "rtl",
-      },
-      {
-        code: "en",
-        iso: "en-US",
-        name: "English",
-        file: "en.json",
-        dir: "ltr",
-      },
-    ],
+  // API layer (`useCatalogService()`, ...) is auto-imported like composables.
+  imports: { dirs: ['services'] },
 
-    defaultLocale: "ar",
-    strategy: "no_prefix",
+  // Components are referenced by file name only (`<ProductCard />`), whatever folder they live in.
+  components: [{ path: '~/components', pathPrefix: false }],
 
-    // ✅ المسار داخل مجلد app/i18n/locales
-    langDir: "locales/",
+  css: ['~/assets/css/main.css'],
 
-    // ✅ المسار لملف الإعدادات
-    vueI18n: "./i18n.config.ts",
-
-    // ✅ الحل الجذري لمشكلة الـ Refresh:
-    detectBrowserLanguage: {
-      useCookie: true,
-      cookieKey: "i18n_redirected",
-      alwaysRedirect: true,
-      fallbackLocale: "ar",
-      redirectOn: "root", // لضمان عدم حدوث Loop في الصفحات الداخلية
+  app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'layout', mode: 'out-in' },
+    head: {
+      charset: 'utf-8',
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
+      meta: [
+        { name: 'theme-color', content: '#987226' },
+        { name: 'format-detection', content: 'telephone=no' },
+      ],
+      link: [
+        { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        { rel: 'icon', type: 'image/png', sizes: '192x192', href: '/icon-192.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/site.webmanifest' },
+        {
+          rel: 'preload',
+          href: '/fonts/Cairo-Regular.woff2',
+          as: 'font',
+          type: 'font/woff2',
+          crossorigin: '',
+        },
+        {
+          rel: 'preload',
+          href: '/fonts/Cairo-Bold.woff2',
+          as: 'font',
+          type: 'font/woff2',
+          crossorigin: '',
+        },
+        { rel: 'preconnect', href: new URL(apiBase).origin, crossorigin: '' },
+      ],
     },
   },
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://localhost:4000",
-      defaultLang: "ar",
+      apiBase,
+      siteUrl,
+      siteName: process.env.NUXT_PUBLIC_SITE_NAME || '',
+      /** `ipx` optimizes images through the Nuxt server; `none` serves them as-is. */
+      imageProvider: process.env.NUXT_PUBLIC_IMAGE_PROVIDER || 'ipx',
+      /** Must match the API's FREE_SHIPPING_THRESHOLD (0 hides the promo). */
+      freeShippingThreshold: Number(process.env.NUXT_PUBLIC_FREE_SHIPPING_THRESHOLD || 0),
     },
   },
 
-  pinia: {
-    storesDirs: ["./stores"],
+  site: {
+    url: siteUrl,
+    name: process.env.NUXT_PUBLIC_SITE_NAME || 'Aphnan Furniture',
+    defaultLocale: 'ar',
   },
 
-  css: ["@/assets/css/main.css", "@/assets/css/admin-shared.css"],
+  i18n: {
+    locales: [
+      { code: 'ar', language: 'ar-EG', name: 'العربية', file: 'ar.json', dir: 'rtl' },
+      { code: 'en', language: 'en-US', name: 'English', file: 'en.json', dir: 'ltr' },
+    ],
+    defaultLocale: 'ar',
+    strategy: 'no_prefix',
+    langDir: 'locales/',
+    vueI18n: './i18n.config.ts',
+    baseUrl: siteUrl,
+    // The cookie remembers the visitor's choice; server/middleware/default-locale.ts
+    // makes Arabic the default instead of the browser language.
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_locale',
+      redirectOn: 'root',
+      fallbackLocale: 'ar',
+    },
+  },
 
   image: {
-    domains: ["http://76.13.41.216/", "localhost:4000"],
-    format: ["webp"],
+    domains: imageDomains,
+    format: ['avif', 'webp'],
+    quality: 80,
+    screens: { xs: 320, sm: 640, md: 768, lg: 1024, xl: 1280, xxl: 1536 },
+  },
+
+  icon: {
+    // Bundle the icons we use instead of fetching them from the Iconify API at runtime.
+    serverBundle: { collections: ['ph', 'circle-flags'] },
+    clientBundle: { scan: true, sizeLimitKb: 256 },
+  },
+
+  robots: {
+    disallow: ['/admin', '/account', '/cart', '/checkout', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email'],
+  },
+
+  sitemap: {
+    sources: ['/api/__sitemap__/urls'],
+    exclude: ['/admin/**', '/account/**', '/cart', '/checkout', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email'],
+  },
+
+  routeRules: {
+    // Private pages also send `noindex` from their page meta.
+    '/admin/**': { ssr: false },
+    '/shop': { redirect: '/products' },
+    '/account/cart': { redirect: '/cart' },
+    '/fonts/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+    '/images/**': { headers: { 'cache-control': 'public, max-age=604800' } },
+  },
+
+  nitro: {
+    compressPublicAssets: true,
+  },
+
+  experimental: {
+    payloadExtraction: true,
   },
 });

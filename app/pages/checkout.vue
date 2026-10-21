@@ -1,787 +1,521 @@
-<template>
-  <div class="checkout-page">
-    <div class="container">
-      <h1 class="page-title">إتمام الطلب</h1>
+<script setup lang="ts">
+import type { Address, CheckoutPreview, PaymentMethod } from '~/types/models';
 
-      <!-- Loading State -->
-      <div v-if="isLoadingData" class="loading-overlay">
-        <div class="spinner"></div>
-        <p>جاري تجهيز بيانات الدفع...</p>
+definePageMeta({ middleware: 'auth' });
+
+const { t } = useI18n();
+const { price } = useLocalized();
+const shop = useShopService();
+const cart = useCartStore();
+const toast = useToast();
+
+usePageSeo({ title: t('checkout.title'), noindex: true });
+
+const addresses = ref<Address[]>([]);
+const addressId = ref<string | null>(null);
+const loading = ref(true);
+const addressModal = ref(false);
+const editing = ref<Address | null>(null);
+
+const preview = ref<CheckoutPreview | null>(null);
+const previewing = ref(false);
+const previewError = ref<string | null>(null);
+
+const couponInput = ref('');
+const coupon = ref<string | null>(null);
+const couponError = ref<string | null>(null);
+const applyingCoupon = ref(false);
+
+const paymentMethod = ref<PaymentMethod>('cod');
+const notes = ref('');
+const placing = ref(false);
+
+async function loadPreview(couponCode = coupon.value): Promise<boolean> {
+  if (!addressId.value) return false;
+  previewing.value = true;
+  previewError.value = null;
+  try {
+    preview.value = await shop.previewOrder({ addressId: addressId.value, couponCode: couponCode ?? undefined });
+    return true;
+  } catch (error) {
+    if (couponCode) throw error;
+    previewError.value = toast.errorMessage(error);
+    return false;
+  } finally {
+    previewing.value = false;
+  }
+}
+
+onMounted(async () => {
+  try {
+    const [list] = await Promise.all([shop.addresses(), cart.loaded ? Promise.resolve() : cart.fetch()]);
+    addresses.value = list;
+    addressId.value = list.find((a) => a.isDefault)?.id ?? list[0]?.id ?? null;
+    if (!list.length) addressModal.value = true;
+  } catch (error) {
+    toast.fromError(error);
+  } finally {
+    loading.value = false;
+  }
+});
+
+// A coupon that does not apply to the new address total is dropped.
+watch(addressId, () => loadPreview().catch(() => removeCoupon()));
+
+async function applyCoupon() {
+  const code = couponInput.value.trim().toUpperCase();
+  if (!code) return;
+  couponError.value = null;
+  applyingCoupon.value = true;
+  try {
+    await loadPreview(code);
+    coupon.value = code;
+    toast.success(t('checkout.couponApplied'));
+  } catch (error) {
+    couponError.value = toast.errorMessage(error);
+  } finally {
+    applyingCoupon.value = false;
+  }
+}
+
+async function removeCoupon() {
+  coupon.value = null;
+  couponInput.value = '';
+  couponError.value = null;
+  await loadPreview(null).catch(() => undefined);
+}
+
+function openAddressForm(address: Address | null = null) {
+  editing.value = address;
+  addressModal.value = true;
+}
+
+async function onAddressSaved(saved: Address) {
+  addressModal.value = false;
+  addresses.value = await shop.addresses();
+  addressId.value = saved.id;
+  await loadPreview().catch(() => undefined);
+}
+
+async function placeOrder() {
+  if (!addressId.value || placing.value) return;
+  placing.value = true;
+  try {
+    const order = await shop.placeOrder({
+      addressId: addressId.value,
+      couponCode: coupon.value ?? undefined,
+      notes: notes.value.trim() || undefined,
+      paymentMethod: paymentMethod.value,
+    });
+    cart.reset();
+    await navigateTo({ path: `/account/orders/${order.id}`, query: { success: 'true' } });
+  } catch (error) {
+    toast.fromError(error);
+    // Prices or stock may have changed: show the fresh numbers.
+    await Promise.allSettled([cart.fetch(), loadPreview()]);
+  } finally {
+    placing.value = false;
+  }
+}
+
+const canPlace = computed(() => !!addressId.value && !!preview.value && !previewing.value && !cart.isEmpty && !cart.hasUnavailable);
+</script>
+
+<template>
+  <div>
+    <PageHeader :title="t('checkout.title')" :crumbs="[{ label: t('cart.title'), to: '/cart' }, { label: t('checkout.title') }]" />
+
+    <div class="container">
+      <div v-if="loading" class="checkout">
+        <div class="stack">
+          <div v-for="n in 3" :key="n" class="skeleton" style="block-size: 10rem; border-radius: var(--radius-lg)" />
+        </div>
+        <div class="skeleton" style="block-size: 22rem; border-radius: var(--radius-lg)" />
       </div>
 
-      <div v-else class="checkout-layout">
-        <!-- RIGHT SIDE: Delivery + Notes + Payment -->
-        <div class="checkout-left">
-          <!-- Delivery Address Section -->
-          <div class="section-card">
-            <h2 class="section-heading">عنوان التسليم</h2>
-            <div class="divider"></div>
+      <BaseEmptyState v-else-if="cart.isEmpty" icon="ph:shopping-bag-open" :title="t('cart.emptyTitle')" :description="t('checkout.emptyText')">
+        <BaseButton to="/products">{{ t('cart.startShopping') }}</BaseButton>
+      </BaseEmptyState>
 
-            <div class="address-list">
-              <div
-                v-for="address in addressStore.addresses"
+      <div v-else class="checkout">
+        <div class="checkout__steps">
+          <!-- 1. Address -->
+          <section class="step card card-pad">
+            <header class="step__head">
+              <span class="step__num">1</span>
+              <h2 class="step__title">{{ t('checkout.shippingAddress') }}</h2>
+              <BaseButton variant="secondary" size="sm" icon="ph:plus" @click="openAddressForm()">{{ t('address.add') }}</BaseButton>
+            </header>
+            <div v-if="addresses.length" class="step__addresses" role="radiogroup" :aria-label="t('checkout.shippingAddress')">
+              <AddressCard
+                v-for="address in addresses"
                 :key="address.id"
-                class="address-card"
-                :class="{ selected: selectedAddressId === address.id }"
-                @click="selectedAddressId = address.id"
-              >
-                <div class="address-info">
-                  <div class="address-top">
-                    <span class="address-label">{{ address.addressName }}</span>
-                    <span v-if="address.isDefault" class="default-badge"
-                      >الافتراضي</span
-                    >
-                  </div>
-                  <p class="address-city">
-                    {{ address.city?.governorate?.nameAr }} -
-                    {{ address.city?.nameAr }}
-                  </p>
-                  <p class="address-details-text">
-                    {{ address.streetAddress }}
-                  </p>
-                  <p class="address-phone">
-                    <span class="phone-icon">📱</span>
-                    {{ address.phoneNumber }}
-                  </p>
-                </div>
-                <div
-                  class="radio-circle"
-                  :class="{ active: selectedAddressId === address.id }"
-                ></div>
+                :address="address"
+                selectable
+                :selected="address.id === addressId"
+                @select="addressId = address.id"
+                @edit="openAddressForm(address)"
+              />
+            </div>
+            <BaseEmptyState v-else compact icon="ph:map-pin-line" :title="t('address.emptyTitle')" :description="t('checkout.addAddressHint')" />
+          </section>
+
+          <!-- 2. Payment -->
+          <section class="step card card-pad">
+            <header class="step__head">
+              <span class="step__num">2</span>
+              <h2 class="step__title">{{ t('checkout.payment') }}</h2>
+            </header>
+            <div class="payments" role="radiogroup" :aria-label="t('checkout.payment')">
+              <label class="pay" :class="{ 'is-selected': paymentMethod === 'cod' }">
+                <input v-model="paymentMethod" type="radio" value="cod" class="visually-hidden" />
+                <Icon name="ph:hand-coins" class="pay__icon" aria-hidden="true" />
+                <span class="pay__text">
+                  <strong>{{ t('checkout.cod') }}</strong>
+                  <small>{{ t('checkout.codHint') }}</small>
+                </span>
+              </label>
+              <div class="pay is-disabled" aria-disabled="true">
+                <Icon name="ph:credit-card" class="pay__icon" aria-hidden="true" />
+                <span class="pay__text">
+                  <strong>{{ t('checkout.online') }}</strong>
+                  <small>{{ t('checkout.onlineHint') }}</small>
+                </span>
+                <BaseBadge tone="info" size="sm">{{ t('common.soon') }}</BaseBadge>
               </div>
-
-              <NuxtLink to="/account/addresses" class="add-address-btn">
-                <span class="plus-icon">+</span>
-                إضافة عنوان جديد
-              </NuxtLink>
             </div>
-          </div>
+          </section>
 
-          <!-- Notes Section -->
-          <div class="section-card">
-            <h2 class="section-heading">ملاحظات</h2>
-            <div class="divider"></div>
-            <textarea
-              v-model="notes"
-              class="notes-textarea"
-              placeholder="اكتب ملاحظاتك للسائق أو المتجر (اختياري)..."
-              rows="3"
-            ></textarea>
-          </div>
-
-          <!-- Payment Method Section -->
-          <div class="section-card">
-            <h2 class="section-heading">طريقة الدفع</h2>
-            <div class="divider"></div>
-            <div class="payment-options">
-              <label
-                class="payment-option"
-                :class="{ active: paymentMethod === 'cod' }"
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="cod"
-                  v-model="paymentMethod"
-                />
-                <span class="payment-label">نقداً عند الاستلام</span>
-                <span class="check-icon" v-if="paymentMethod === 'cod'">✓</span>
-              </label>
-
-              <label
-                class="payment-option"
-                :class="{ active: paymentMethod === 'online' }"
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="online"
-                  v-model="paymentMethod"
-                />
-                <span class="payment-label">دفع أونلاين (بطاقة)</span>
-                <span class="check-icon" v-if="paymentMethod === 'online'"
-                  >✓</span
-                >
-              </label>
-            </div>
-          </div>
+          <!-- 3. Notes -->
+          <section class="step card card-pad">
+            <header class="step__head">
+              <span class="step__num">3</span>
+              <h2 class="step__title">{{ t('checkout.notes') }}</h2>
+            </header>
+            <BaseTextarea v-model="notes" :placeholder="t('checkout.notesPlaceholder')" :rows="3" :maxlength="500" />
+          </section>
         </div>
 
-        <!-- LEFT SIDE: Order Summary -->
-        <div class="checkout-right">
-          <div class="section-card summary-card">
-            <h2 class="section-heading">ملخص الطلب</h2>
-            <div class="divider"></div>
+        <aside class="summary card card-pad">
+          <h2 class="summary__title">{{ t('checkout.orderSummary') }}</h2>
 
-            <!-- 1. Order Items from Cart -->
-            <div class="order-items">
-              <div
-                v-for="item in cartStore.items"
-                :key="item.id"
-                class="order-item"
-              >
-                <div class="item-details">
-                  <p class="item-title">
-                    {{ item.product?.metaTitle || item.product?.name }}
-                  </p>
-                  <p class="item-qty-price">
-                    <span class="item-qty">{{ item.quantity }} × </span>
-                    <span class="item-price">{{
-                      formatPrice(
-                        item.product?.baseDiscountPrice ||
-                          item.product?.basePrice,
-                      )
-                    }}</span>
-                  </p>
-                </div>
-                <div class="item-image">
-                  <img
-                    :src="item.product?.mainImage"
-                    :alt="item.product?.metaTitle"
-                  />
-                </div>
+          <ul v-if="preview" class="summary__items">
+            <li v-for="item in preview.items" :key="`${item.productId}-${item.variantId}`" class="summary__item">
+              <span class="summary__thumb">
+                <BaseImage :src="item.image" :alt="item.name" :width="64" :height="64" ratio="1" rounded />
+                <span class="summary__qty">{{ item.quantity }}</span>
+              </span>
+              <span class="summary__name">
+                <span class="line-clamp-2">{{ item.name }}</span>
+                <small v-if="item.variantLabel">{{ item.variantLabel }}</small>
+              </span>
+              <strong>{{ price(item.lineTotal) }}</strong>
+            </li>
+          </ul>
+          <BaseAlert v-else-if="previewError" tone="danger">{{ previewError }}</BaseAlert>
+          <p v-else-if="!addressId" class="text-subtle summary__hint">{{ t('checkout.selectAddressFirst') }}</p>
+          <div v-else class="stack"><div v-for="n in 2" :key="n" class="skeleton" style="block-size: 3.5rem" /></div>
+
+          <form class="coupon" @submit.prevent="applyCoupon">
+            <template v-if="coupon">
+              <div class="coupon__applied">
+                <Icon name="ph:ticket" aria-hidden="true" />
+                <span>{{ t('checkout.couponCode', { code: coupon }) }}</span>
+                <button type="button" class="coupon__remove" :aria-label="t('common.remove')" @click="removeCoupon"><Icon name="ph:x" /></button>
               </div>
+            </template>
+            <template v-else>
+              <BaseInput v-model="couponInput" :placeholder="t('checkout.couponPlaceholder')" icon="ph:ticket" dir="ltr" :error="couponError ?? undefined" :disabled="!addressId" />
+              <BaseButton type="submit" variant="secondary" :loading="applyingCoupon" :disabled="!couponInput.trim() || !addressId">
+                {{ t('checkout.apply') }}
+              </BaseButton>
+            </template>
+          </form>
+
+          <dl v-if="preview" class="summary__rows" :class="{ 'is-stale': previewing }">
+            <div>
+              <dt>{{ t('cart.subtotal') }}</dt>
+              <dd>{{ price(preview.subTotal) }}</dd>
             </div>
-
-            <!-- 2. Coupon Row -->
-            <div class="coupon-section-wrapper">
-              <div class="coupon-row">
-                <input
-                  type="text"
-                  class="coupon-input"
-                  placeholder="أدخل كود الخصم"
-                  v-model="couponCode"
-                  :disabled="!!appliedCoupon"
-                />
-                <button
-                  class="coupon-apply-btn"
-                  @click="validateCoupon"
-                  :disabled="validatingCoupon || !!appliedCoupon"
-                >
-                  {{ validatingCoupon ? "..." : "تطبيق" }}
-                </button>
-              </div>
-
-              <!-- رسائل الحالة للكوبون -->
-              <div v-if="appliedCoupon" class="coupon-success">
-                <span class="success-icon">✓</span>
-                تم تطبيق الكوبون: <strong>{{ appliedCoupon.code }}</strong> (خصم
-                {{ formatPrice(appliedCoupon.discountAmount) }})
-                <button @click="removeCoupon" class="remove-coupon-btn">
-                  إزالة
-                </button>
-              </div>
-
-              <div
-                v-if="errorMessage && errorMessage.includes('كود')"
-                class="coupon-error"
-              >
-                {{ errorMessage }}
-              </div>
+            <div>
+              <dt>{{ t('cart.shipping') }}</dt>
+              <dd>
+                <span v-if="preview.shippingFee === 0" class="text-success">{{ t('checkout.free') }}</span>
+                <template v-else>{{ price(preview.shippingFee) }}</template>
+              </dd>
             </div>
-
-            <!-- 3. Totals -->
-            <div class="totals-section">
-              <div class="total-row">
-                <span class="total-label">المجموع الفرعي</span>
-                <span class="total-amount">{{
-                  formatPrice(cartStore.total)
-                }}</span>
-              </div>
-
-              <div class="total-row">
-                <span class="total-label">رسوم التوصيل</span>
-                <span class="total-amount">{{ formatPrice(shippingFee) }}</span>
-              </div>
-
-              <div v-if="discountAmount > 0" class="total-row discount">
-                <span class="total-label">الخصم</span>
-                <span class="total-amount text-red"
-                  >- {{ formatPrice(discountAmount) }}</span
-                >
-              </div>
-
-              <div class="divider-light"></div>
-
-              <div class="total-row final-total">
-                <span class="total-label final">الإجمالي النهائي</span>
-                <span class="total-amount final">{{
-                  formatPrice(grandTotal)
-                }}</span>
-              </div>
+            <div v-if="preview.discountAmount > 0" class="summary__saving">
+              <dt>{{ t('checkout.discount') }}</dt>
+              <dd>-{{ price(preview.discountAmount) }}</dd>
             </div>
+            <div class="summary__total">
+              <dt>{{ t('cart.total') }}</dt>
+              <dd>{{ price(preview.totalAmount) }}</dd>
+            </div>
+          </dl>
 
-            <!-- Confirm Button -->
-            <button
-              class="confirm-btn"
-              @click="placeOrder"
-              :disabled="isSubmitting || !canPlaceOrder"
-            >
-              <span v-if="isSubmitting">جاري تأكيد الطلب...</span>
-              <span v-else>تأكيد الطلب ودفع {{ formatPrice(grandTotal) }}</span>
-            </button>
-
-            <!-- Global Error Message -->
-            <p
-              v-if="errorMessage && !errorMessage.includes('كود')"
-              class="error-msg"
-            >
-              {{ errorMessage }}
-            </p>
-          </div>
-        </div>
+          <BaseButton size="lg" block icon="ph:lock-simple" :loading="placing" :disabled="!canPlace" @click="placeOrder">
+            {{ t('checkout.placeOrder') }}
+          </BaseButton>
+          <p class="summary__terms">
+            {{ t('checkout.agree') }} <NuxtLink to="/terms">{{ t('nav.terms') }}</NuxtLink>
+          </p>
+        </aside>
       </div>
     </div>
+
+    <BaseModal v-model="addressModal" :title="editing ? t('address.edit') : t('address.add')" size="lg" persistent>
+      <AddressForm
+        v-if="addressModal"
+        :address="editing"
+        :make-default="!addresses.length"
+        @saved="onAddressSaved"
+        @cancel="addressModal = false"
+      />
+    </BaseModal>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from "vue";
-import { useCartStore } from "@/stores/cart";
-import { useAddressStore } from "@/stores/address";
-import { useOrdersStore } from "@/stores/orders";
-
-definePageMeta({ middleware: ["auth"] });
-
-const cartStore = useCartStore();
-const addressStore = useAddressStore();
-const ordersStore = useOrdersStore();
-
-// State
-const selectedAddressId = ref("");
-const notes = ref("");
-const paymentMethod = ref("cod"); // cod or online
-const couponCode = ref("");
-const appliedCoupon = ref(null);
-const isSubmitting = ref(false);
-const isLoadingData = ref(true);
-const errorMessage = ref("");
-const validatingCoupon = ref(false);
-
-// Computed
-const shippingFee = computed(() => {
-  const address = addressStore.addresses.find(
-    (a) => a.id === selectedAddressId.value,
-  );
-  if (!address) return 0;
-  return address.city?.governorate?.baseShippingCost || 50;
-});
-
-const discountAmount = computed(() => appliedCoupon.value?.discountAmount || 0);
-
-const grandTotal = computed(() => {
-  const subtotal = parseFloat(cartStore.total) || 0;
-  const shipping = parseFloat(shippingFee.value) || 0;
-  const discount = parseFloat(discountAmount.value) || 0;
-
-  let total = subtotal + shipping - discount;
-  return Math.max(0, total);
-});
-
-const canPlaceOrder = computed(() => {
-  return selectedAddressId.value && cartStore.items.length > 0;
-});
-
-// Methods
-const formatPrice = (price) => {
-  if (price === null || price === undefined) return "0 ج.م";
-  return new Intl.NumberFormat("en-EG", {
-    style: "currency",
-    currency: "EGP",
-    minimumFractionDigits: 0,
-  }).format(price);
-};
-
-const removeCoupon = () => {
-  appliedCoupon.value = null;
-  couponCode.value = "";
-  errorMessage.value = "";
-};
-
-const validateCoupon = async () => {
-  if (!couponCode.value) return;
-  validatingCoupon.value = true;
-  errorMessage.value = "";
-
-  try {
-    const config = useRuntimeConfig();
-    const token = useCookie("auth_token").value;
-    const amountToSend = parseFloat(cartStore.total) || 0;
-
-    const response = await $fetch(
-      `${config.public.apiBase}/coupons/validate?code=${couponCode.value}&amount=${amountToSend}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (response.success && response.data) {
-      appliedCoupon.value = {
-        code: couponCode.value,
-        discountAmount: response.data.discountAmount,
-      };
-    } else {
-      appliedCoupon.value = null;
-      errorMessage.value = "كود الخصم غير صالح أو لا ينطبق على هذا الطلب.";
-    }
-  } catch (err) {
-    appliedCoupon.value = null;
-    errorMessage.value = err?.data?.message || "حدث خطأ في التحقق من الكوبون.";
-  } finally {
-    validatingCoupon.value = false;
-  }
-};
-
-const placeOrder = async () => {
-  if (!canPlaceOrder.value) return;
-  isSubmitting.value = true;
-  errorMessage.value = "";
-
-  const payload = {
-    addressId: selectedAddressId.value,
-    items: cartStore.items.map((item) => ({
-      productId: item.productId || item.product?.id,
-      quantity: item.quantity,
-    })),
-    couponCode: appliedCoupon.value ? appliedCoupon.value.code : null,
-
-    // إرسال الملاحظات وطريقة الدفع (الآن الـ Backend يقبلها بفضل تعديل الـ DTO)
-    notes: notes.value && notes.value.trim() !== "" ? notes.value : null,
-    paymentMethod: paymentMethod.value,
-  };
-
-  const result = await ordersStore.createOrder(payload);
-
-  if (result.success) {
-    await cartStore.clearCart();
-    navigateTo(`/account/orders/${result.data.id}?success=true`);
-  } else {
-    errorMessage.value =
-      result.error || "فشل إتمام الطلب، يرجى المحاولة مرة أخرى.";
-  }
-
-  isSubmitting.value = false;
-};
-
-// Lifecycle
-onMounted(async () => {
-  isLoadingData.value = true;
-  await Promise.all([cartStore.fetchCart(), addressStore.fetchAddresses()]);
-
-  const defaultAddr = addressStore.defaultAddress;
-  if (defaultAddr) {
-    selectedAddressId.value = defaultAddr.id;
-  } else if (addressStore.addresses.length > 0) {
-    selectedAddressId.value = addressStore.addresses[0].id;
-  }
-
-  isLoadingData.value = false;
-});
-</script>
-
 <style scoped>
-.checkout-page {
-  min-height: 100vh;
-  background-color: var(--bg-body, #fffff5);
-  padding: 40px 0 80px;
-  font-family: "Cairo", sans-serif;
-}
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-.page-title {
-  text-align: center;
-  font-size: 26px;
-  font-weight: 600;
-  color: var(--color-green-primary, #987226);
-  margin-bottom: 40px;
-}
-.checkout-layout {
+.checkout {
   display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 30px;
+  /* minmax(0, …) lets the column shrink below its content (no page overflow). */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
   align-items: start;
 }
-.checkout-left {
+@media (min-width: 1024px) {
+  .checkout {
+    grid-template-columns: minmax(0, 1fr) 400px;
+  }
+  .summary {
+    position: sticky;
+    inset-block-start: calc(var(--header-height) + 4rem);
+  }
+}
+.checkout__steps {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-4);
 }
-.checkout-right {
-  position: sticky;
-  top: 20px;
-}
-
-.section-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 24px 28px;
-  box-shadow: var(--shadow-2, 0px 5px 10px 0px #0000000d);
-  border: 1px solid #f0ece2;
-}
-.section-heading {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-green-primary, #987226);
-  text-align: center;
-  margin-bottom: 14px;
-}
-.divider {
-  border: none;
-  border-top: 1.5px solid #f0ece2;
-  margin-bottom: 20px;
-}
-.divider-light {
-  border: none;
-  border-top: 1px solid #f0ece2;
-  margin: 10px 0;
-}
-
-/* Address */
-.address-list {
+.step {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-5);
+  animation: fade-up 0.5s var(--ease-out) both;
 }
-.address-card {
+.step:nth-child(2) {
+  animation-delay: 80ms;
+}
+.step:nth-child(3) {
+  animation-delay: 160ms;
+}
+.step__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  border: 1.5px solid #e8e0cf;
-  border-radius: 10px;
-  padding: 14px 18px;
-  background: #faf8f3;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: var(--space-3);
 }
-.address-card.selected {
-  border-color: var(--color-green-primary, #987226);
-  background: #fdf9f0;
-}
-.address-info {
-  flex: 1;
-  text-align: right;
-}
-.address-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-green-primary, #987226);
-}
-.default-badge {
-  font-size: 10px;
-  background: #eee;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-right: 8px;
-}
-.address-city {
-  font-size: 15px;
-  font-weight: 700;
-  color: #333;
-  margin: 4px 0;
-}
-.address-details-text {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 4px;
-}
-.address-phone {
-  font-size: 14px;
-  color: #555;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: flex-end;
-}
-.radio-circle {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #ccc;
-  border-radius: 50%;
-  margin-right: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.radio-circle.active {
-  border-color: var(--color-green-primary, #987226);
-  background: var(--color-green-primary, #987226);
-}
-.radio-circle.active::after {
-  content: "";
-  width: 8px;
-  height: 8px;
-  background: #fff;
-  border-radius: 50%;
-}
-.add-address-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 14px;
-  border: 1.5px dashed #c8b98a;
-  border-radius: 10px;
-  background: transparent;
-  color: #888;
-  font-size: 15px;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-.add-address-btn:hover {
-  border-color: var(--color-green-primary, #987226);
-  color: var(--color-green-primary, #987226);
-}
-
-/* Notes */
-.notes-textarea {
-  width: 100%;
-  min-height: 80px;
-  border: 1.5px solid #e8e0cf;
-  border-radius: 10px;
-  padding: 12px;
-  font-family: inherit;
-  resize: vertical;
-  outline: none;
-}
-.notes-textarea:focus {
-  border-color: var(--color-green-primary, #987226);
-}
-
-/* Payment */
-.payment-options {
+.step__num {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.payment-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border: 1.5px solid #e8e0cf;
-  border-radius: 10px;
-  cursor: pointer;
-  background: #faf8f3;
-  transition: all 0.2s;
-}
-.payment-option.active {
-  border-color: var(--color-green-primary, #987226);
-  background: #fdf9f0;
-}
-.payment-option input {
-  display: none;
-}
-.check-icon {
-  color: var(--color-green-primary, #987226);
-  font-weight: bold;
-}
-
-/* Summary */
-.summary-card {
-  padding: 24px;
-}
-.order-items {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  max-height: 300px;
-  overflow-y: auto;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #f0ece2;
-  padding-bottom: 15px;
-}
-.order-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0ece2;
-  gap: 12px;
-}
-.order-item:last-child {
-  border-bottom: none;
-}
-.item-details {
-  flex: 1;
-  text-align: right;
-}
-.item-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-.item-qty-price {
-  font-size: 13px;
-  color: #555;
-}
-.item-image {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f0ece2;
-}
-.item-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Coupon */
-.coupon-section-wrapper {
-  margin-bottom: 15px;
-}
-.coupon-row {
-  display: flex;
-  gap: 10px;
-}
-.coupon-input {
-  flex: 1;
-  padding: 10px;
-  border: 1.5px solid #e8e0cf;
-  border-radius: 8px;
-  outline: none;
-  text-align: right;
-}
-.coupon-input:focus {
-  border-color: var(--color-green-primary, #987226);
-}
-.coupon-apply-btn {
-  padding: 10px 20px;
-  background: var(--color-green-primary, #987226);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.coupon-apply-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-.coupon-success {
-  font-size: 13px;
-  color: #059669;
-  background: #ecfdf5;
-  padding: 8px;
-  border-radius: 6px;
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.remove-coupon-btn {
-  background: none;
-  border: none;
-  color: #dc2626;
-  cursor: pointer;
-  font-size: 12px;
-  text-decoration: underline;
-}
-.coupon-error {
-  font-size: 12px;
-  color: #dc2626;
-  margin-top: 5px;
-}
-
-/* Totals */
-.totals-section {
-  margin-bottom: 20px;
-}
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 15px;
-}
-.total-row.discount {
-  color: #059669;
-}
-.final-total {
-  font-size: 18px;
-  font-weight: 800;
-  color: #1a1a2e;
-  border-top: 2px solid #eee;
-  margin-top: 10px;
-  padding-top: 15px;
-}
-
-/* Confirm Btn */
-.confirm-btn {
-  display: block;
-  width: 100%;
-  padding: 16px;
-  background: var(--color-green-primary, #987226);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.confirm-btn:hover:not(:disabled) {
-  background: #896722;
-  transform: translateY(-2px);
-}
-.confirm-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-}
-.error-msg {
-  color: #dc2626;
-  font-size: 14px;
-  text-align: center;
-  margin-top: 10px;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.9);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--color-green-primary, #987226);
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-sm);
 }
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
+.step__title {
+  margin-inline-end: auto;
+  font-size: var(--text-lg);
+}
+.step__addresses {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+}
+.payments {
+  display: grid;
+  /* minmax(0, …) lets the column shrink below its content (no page overflow). */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+@media (min-width: 640px) {
+  .payments {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
-
-@media (max-width: 768px) {
-  .checkout-layout {
-    grid-template-columns: 1fr;
-  }
-  .checkout-right {
-    position: static;
-    order: -1;
-  }
+.pay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+}
+.pay.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-softer);
+}
+.pay:focus-within {
+  box-shadow: var(--ring);
+}
+.pay.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.pay__icon {
+  font-size: 1.75rem;
+  color: var(--color-primary);
+}
+.pay__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: var(--text-sm);
+}
+.pay__text small {
+  color: var(--color-text-subtle);
+}
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.summary__title {
+  font-size: var(--text-xl);
+}
+.summary__hint {
+  font-size: var(--text-sm);
+}
+.summary__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-block-size: 18rem;
+  overflow-y: auto;
+}
+.summary__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+.summary__thumb {
+  position: relative;
+  flex-shrink: 0;
+  inline-size: 3.5rem;
+}
+.summary__qty {
+  position: absolute;
+  inset-block-start: -0.4rem;
+  inset-inline-end: -0.4rem;
+  display: grid;
+  place-items: center;
+  min-inline-size: 1.3rem;
+  block-size: 1.3rem;
+  border-radius: var(--radius-full);
+  background: var(--stone-700);
+  color: #fff;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+}
+.summary__name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+.summary__name small {
+  color: var(--color-text-subtle);
+}
+.coupon {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.coupon > :first-child {
+  flex: 1;
+}
+.coupon :deep(.btn) {
+  min-block-size: 3rem;
+}
+.coupon__applied {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-success);
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-sm);
+}
+.coupon__applied span {
+  flex: 1;
+}
+.coupon__remove {
+  display: grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+}
+.coupon__remove:hover {
+  background: rgb(0 0 0 / 0.06);
+}
+.summary__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  transition: opacity var(--duration-base) ease;
+}
+.summary__rows.is-stale {
+  opacity: 0.5;
+}
+.summary__rows div {
+  display: flex;
+  justify-content: space-between;
+}
+.summary__rows dt {
+  color: var(--color-text-muted);
+}
+.summary__rows dd {
+  font-weight: var(--weight-semibold);
+}
+.text-success {
+  color: var(--color-success);
+}
+.summary__saving dd {
+  color: var(--color-success);
+}
+.summary__total {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px dashed var(--color-border);
+  font-size: var(--text-lg);
+}
+.summary__total dt {
+  color: var(--color-text) !important;
+  font-weight: var(--weight-bold);
+}
+.summary__total dd {
+  font-weight: var(--weight-black) !important;
+}
+.summary__terms {
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+.summary__terms a {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 </style>

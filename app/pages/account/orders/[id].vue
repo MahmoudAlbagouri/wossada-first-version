@@ -1,481 +1,468 @@
+<script setup lang="ts">
+const route = useRoute();
+const { t } = useI18n();
+const { price, dateTime, placeName, lang } = useLocalized();
+const shop = useShopService();
+const toast = useToast();
+const { confirm } = useConfirm();
+
+const id = computed(() => String(route.params.id));
+const justPlaced = computed(() => route.query.success === 'true');
+
+const { data: order, status, error, refresh } = await useLazyAsyncData(() => `my-order-${id.value}`, () => shop.myOrder(id.value), {
+  server: false,
+});
+
+useHead({ title: () => (order.value ? `${t('orders.order')} #${shortOrderNumber(order.value.orderNumber)}` : t('orders.order')) });
+
+const step = computed(() => (order.value ? ORDER_STATUS_META[order.value.status].step : 0));
+const offTrack = computed(() => step.value < 0);
+const canCancel = computed(() => !!order.value && CUSTOMER_CANCELLABLE.includes(order.value.status));
+
+const timeline = computed(() =>
+  ORDER_PROGRESS.map((status, index) => ({
+    status,
+    icon: ORDER_STATUS_META[status].icon,
+    label: t(`orders.status.${status}`),
+    done: !offTrack.value && index <= step.value,
+    current: !offTrack.value && index === step.value,
+  })),
+);
+
+const address = computed(() => order.value?.shippingSnapshot);
+const city = computed(() =>
+  address.value
+    ? placeName({ nameAr: address.value.cityNameAr, nameEn: address.value.cityNameEn })
+    : '',
+);
+const governorate = computed(() =>
+  address.value
+    ? placeName({ nameAr: address.value.governorateNameAr, nameEn: address.value.governorateNameEn })
+    : '',
+);
+
+const cancelling = ref(false);
+async function cancel() {
+  if (!order.value) return;
+  const ok = await confirm({
+    title: t('orders.cancelConfirm'),
+    message: t('orders.cancelConfirmText'),
+    tone: 'danger',
+    confirmText: t('orders.cancel'),
+    cancelText: t('orders.keep'),
+  });
+  if (!ok) return;
+  cancelling.value = true;
+  try {
+    await shop.cancelOrder(order.value.id);
+    toast.success(t('orders.cancelled'));
+    await refresh();
+  } catch (e) {
+    toast.fromError(e);
+  } finally {
+    cancelling.value = false;
+  }
+}
+
+const downloading = ref(false);
+async function downloadInvoice() {
+  if (!order.value) return;
+  downloading.value = true;
+  try {
+    const blob = await shop.downloadInvoice(order.value.id);
+    saveBlob(blob, `invoice-${order.value.orderNumber}.pdf`);
+  } catch (e) {
+    toast.fromError(e);
+  } finally {
+    downloading.value = false;
+  }
+}
+</script>
+
 <template>
-  <div class="container">
-    <div class="account-layout">
-      <aside class="sidebar">
-        <AccountSidebar />
-      </aside>
+  <div class="order-page">
+    <NuxtLink to="/account/orders" class="order-page__back">
+      <Icon name="ph:arrow-left" class="flip-rtl" aria-hidden="true" />{{ t('orders.back') }}
+    </NuxtLink>
 
-      <main class="main-content">
-        <div class="account-card">
-          <h1 class="card-title">تفاصيل الطلب</h1>
-
-          <div v-if="store.loading" class="loading-state">
-            <div class="spinner"></div>
-            <p>جاري تحميل التفاصيل...</p>
-          </div>
-
-          <div v-else-if="!order" class="error-state">
-            <p>لم يتم العثور على تفاصيل الطلب.</p>
-            <button class="back-btn" @click="goBack">العودة للقائمة</button>
-          </div>
-
-          <div v-else>
-            <!-- Order Header Info -->
-            <div class="order-header-details">
-              <div class="header-grid">
-                <div class="header-item">
-                  <span class="label">رقم الطلب</span>
-                  <span class="value"
-                    >#{{ order.orderNumber.split("-").pop() }}</span
-                  >
-                </div>
-                <div class="header-item">
-                  <span class="label">التاريخ</span>
-                  <span class="value">{{ formatDate(order.createdAt) }}</span>
-                </div>
-                <div class="header-item">
-                  <span class="label">الحالة</span>
-                  <span
-                    class="value status-badge"
-                    :class="getStatusClass(order.status)"
-                  >
-                    {{ getStatusText(order.status) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Shipping Address -->
-            <div class="section-block">
-              <h2 class="section-title">عنوان الشحن</h2>
-              <div class="address-box">
-                <div class="addr-header">
-                  <strong>{{ order.shippingAddress?.fullName }}</strong>
-                  <span class="phone">{{
-                    order.shippingAddress?.phoneNumber
-                  }}</span>
-                </div>
-                <p class="addr-text">
-                  {{ order.shippingAddress?.streetAddress }}<br />
-                  {{
-                    order.shippingAddress?.landmark
-                      ? order.shippingAddress.landmark + " - "
-                      : ""
-                  }}
-                  {{ order.shippingAddress?.city?.nameAr }},
-                  {{ order.shippingAddress?.city?.governorate?.nameAr }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Products -->
-            <div class="section-block">
-              <h2 class="section-title">المنتجات</h2>
-              <div class="products-list">
-                <div
-                  v-for="item in order.items"
-                  :key="item.id"
-                  class="product-row"
-                >
-                  <div class="prod-img">
-                    <img :src="item.product?.mainImage" alt="" />
-                  </div>
-                  <div class="prod-info">
-                    <h3>{{ item.product?.metaTitle || item.product?.name }}</h3>
-                    <div class="prod-meta">
-                      <span>الكمية: {{ item.quantity }}</span>
-                      <span class="price">{{
-                        formatPrice(item.priceAtPurchase)
-                      }}</span>
-                    </div>
-                  </div>
-                  <div class="prod-total">
-                    {{ formatPrice(item.priceAtPurchase * item.quantity) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Financial Summary -->
-            <div class="section-block summary-block">
-              <h2 class="section-title">ملخص الدفع</h2>
-              <div class="summary-rows">
-                <div class="row">
-                  <span>المجموع الفرعي</span>
-                  <span>{{ formatPrice(order.subTotal) }}</span>
-                </div>
-                <div class="row">
-                  <span>الشحن</span>
-                  <span>{{ formatPrice(order.shippingFee) }}</span>
-                </div>
-                <div v-if="order.discountAmount > 0" class="row discount">
-                  <span>الخصم ({{ order.couponCode }})</span>
-                  <span>- {{ formatPrice(order.discountAmount) }}</span>
-                </div>
-                <div class="row total">
-                  <span>الإجمالي النهائي</span>
-                  <span>{{ formatPrice(order.totalAmount) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="actions-footer">
-              <button class="back-btn" @click="goBack">
-                <Icon name="ph:arrow-right" />
-                العودة إلى الطلبات
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
+    <div v-if="isFetching(status) && !order" class="stack">
+      <div class="skeleton" style="block-size: 8rem; border-radius: var(--radius-lg)" />
+      <div class="skeleton" style="block-size: 16rem; border-radius: var(--radius-lg)" />
     </div>
+
+    <div v-else-if="error || !order" class="card">
+      <BaseEmptyState icon="ph:package" :title="t('orders.notFound')">
+        <BaseButton to="/account/orders">{{ t('orders.back') }}</BaseButton>
+      </BaseEmptyState>
+    </div>
+
+    <template v-else>
+      <div v-if="justPlaced" class="success card">
+        <div class="success__burst" aria-hidden="true">
+          <span v-for="n in 12" :key="n" :style="{ '--i': n }" />
+        </div>
+        <span class="success__icon"><Icon name="ph:check-bold" /></span>
+        <div>
+          <h2 class="success__title">{{ t('orders.thanksTitle') }}</h2>
+          <p class="text-muted">{{ t('orders.thanksText') }}</p>
+        </div>
+      </div>
+
+      <header class="order-page__head">
+        <div>
+          <h1 class="order-page__title">{{ t('orders.order') }} #{{ shortOrderNumber(order.orderNumber) }}</h1>
+          <p class="text-subtle meta-list">
+            <span dir="ltr">{{ order.orderNumber }}</span>
+            <time :datetime="order.createdAt">{{ dateTime(order.createdAt) }}</time>
+          </p>
+        </div>
+        <div class="cluster">
+          <OrderStatusBadge :status="order.status" />
+          <BaseButton variant="outline" size="sm" icon="ph:file-pdf" :loading="downloading" @click="downloadInvoice">
+            {{ t('orders.invoice') }}
+          </BaseButton>
+          <BaseButton v-if="canCancel" variant="ghost" size="sm" icon="ph:x-circle" :loading="cancelling" class="order-page__cancel" @click="cancel">
+            {{ t('orders.cancel') }}
+          </BaseButton>
+        </div>
+      </header>
+
+      <!-- Progress tracker -->
+      <section class="card card-pad">
+        <BaseAlert v-if="offTrack" :tone="order.status === 'cancelled' ? 'danger' : 'warning'" :title="t(`orders.status.${order.status}`)">
+          {{ order.status === 'cancelled' ? t('orders.cancelledText') : t('orders.returnedText') }}
+        </BaseAlert>
+        <ol v-else class="tracker" :style="{ '--progress': Math.max(step, 0) / (ORDER_PROGRESS.length - 1) }">
+          <li v-for="item in timeline" :key="item.status" class="tracker__step" :class="{ 'is-done': item.done, 'is-current': item.current }">
+            <span class="tracker__dot"><Icon :name="item.done ? 'ph:check-bold' : item.icon" aria-hidden="true" /></span>
+            <span class="tracker__label">{{ item.label }}</span>
+          </li>
+        </ol>
+        <p v-if="order.trackingNumber" class="tracking">
+          <Icon name="ph:barcode" aria-hidden="true" />{{ t('orders.tracking') }}: <strong dir="ltr">{{ order.trackingNumber }}</strong>
+        </p>
+      </section>
+
+      <div class="order-page__grid">
+        <section class="card card-pad">
+          <h2 class="block-title">{{ t('orders.items') }}</h2>
+          <ul class="items">
+            <li v-for="item in order.items" :key="item.id" class="item">
+              <BaseImage :src="item.productImage ?? item.product?.mainImage" :alt="item.productName ?? ''" :width="80" :height="80" ratio="1" rounded class="item__img" />
+              <div class="item__info">
+                <NuxtLink v-if="item.product" :to="`/product/${item.product.slug}`" class="item__name">{{ item.productName }}</NuxtLink>
+                <span v-else class="item__name">{{ item.productName }}</span>
+                <small v-if="item.variantLabel" class="text-subtle">{{ item.variantLabel }}</small>
+                <small class="text-subtle">{{ item.quantity }} × {{ price(item.priceAtPurchase) }}</small>
+              </div>
+              <strong>{{ price(item.priceAtPurchase * item.quantity) }}</strong>
+            </li>
+          </ul>
+        </section>
+
+        <div class="stack">
+          <section class="card card-pad">
+            <h2 class="block-title">{{ t('checkout.orderSummary') }}</h2>
+            <dl class="totals">
+              <div><dt>{{ t('cart.subtotal') }}</dt><dd>{{ price(order.subTotal) }}</dd></div>
+              <div>
+                <dt>{{ t('cart.shipping') }}</dt>
+                <dd>{{ order.shippingFee > 0 ? price(order.shippingFee) : t('checkout.free') }}</dd>
+              </div>
+              <div v-if="order.discountAmount > 0" class="totals__discount">
+                <dt>{{ t('checkout.discount') }}<template v-if="order.couponCode"> ({{ order.couponCode }})</template></dt>
+                <dd>-{{ price(order.discountAmount) }}</dd>
+              </div>
+              <div class="totals__total"><dt>{{ t('cart.total') }}</dt><dd>{{ price(order.totalAmount) }}</dd></div>
+            </dl>
+            <p class="payment"><Icon name="ph:hand-coins" aria-hidden="true" />{{ t(`orders.payment.${order.paymentMethod}`) }}</p>
+          </section>
+
+          <section v-if="address" class="card card-pad">
+            <h2 class="block-title">{{ t('checkout.shippingAddress') }}</h2>
+            <address class="addr">
+              <strong>{{ address.fullName }}</strong>
+              <span>{{ address.streetAddress }}</span>
+              <span>{{ city }}<template v-if="governorate">{{ lang === 'ar' ? '، ' : ', ' }}{{ governorate }}</template></span>
+              <span v-if="address.landmark" class="text-subtle">{{ address.landmark }}</span>
+              <span dir="ltr" class="addr__phone">{{ address.phoneNumber }}</span>
+            </address>
+          </section>
+
+          <section v-if="order.notes" class="card card-pad">
+            <h2 class="block-title">{{ t('checkout.notes') }}</h2>
+            <p class="text-muted">{{ order.notes }}</p>
+          </section>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import AccountSidebar from "@/components/base/AccountSidebar.vue";
-import { useOrdersStore } from "@/stores/orders";
-
-definePageMeta({ middleware: ["auth"] });
-
-const route = useRoute();
-const router = useRouter();
-const store = useOrdersStore();
-
-// Fetch specific order details
-// ملاحظة: في الـ API الذي أرسلته، لا يوجد endpoint محدد لجلب طلب واحد للمستخدم (مثل /my-orders/:id)،
-// لكن عادةً ما يكون موجوداً. إذا لم يكن موجوداً، سنعتمد على الفلترة من قائمة الطلبات المحملة مسبقاً.
-// سأفترض وجود endpoint أو سنستخدم البيانات من القائمة إذا كانت محملة.
-// للتوضيح، سأستخدم منطق يجلب الطلب من الـ Store إذا كان موجوداً، وإلا يحاول جلبه.
-
-const order = computed(() => {
-  return (
-    store.orders.find((o) => o.id === route.params.id) || store.currentOrder
-  );
-});
-
-onMounted(async () => {
-  // إذا لم يكن الطلب في القائمة المحلية، نحاول جلبه (إذا توفر الـ endpoint)
-  // أو نجلب كل الطلبات ونبحث فيها
-  if (!store.orders.length) {
-    await store.fetchMyOrders();
-  }
-
-  // محاولة جلب تفاصيل محددة إذا توفرت الدالة في الـ Store (يمكن إضافتها لاحقاً)
-  // const found = store.orders.find(o => o.id === route.params.id);
-  // if (!found) { /* Handle error or fetch single */ }
-});
-
-// Helpers
-const formatDate = (dateString) => {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("ar-EG", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat("ar-EG", {
-    style: "currency",
-    currency: "EGP",
-  }).format(price);
-};
-
-const getStatusText = (status) => {
-  const map = {
-    pending: "قيد المراجعة",
-    processing: "جاري التجهيز",
-    shipped: "تم الشحن",
-    delivered: "تم التسليم",
-    cancelled: "ملغي",
-  };
-  return map[status] || status;
-};
-
-const getStatusClass = (status) => {
-  const map = {
-    pending: "status-pending",
-    processing: "status-processing",
-    shipped: "status-shipped",
-    delivered: "status-delivered",
-    cancelled: "status-cancelled",
-  };
-  return map[status] || "";
-};
-
-const goBack = () => {
-  router.push("/account/orders");
-};
-</script>
-
-<style scoped lang="scss">
-/* Layout & Card */
-.account-layout {
-  min-height: 100vh;
-  display: flex;
-  background-color: var(--bg-body);
-  padding: 20px;
-  gap: 24px;
-  padding-top: 50px;
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-}
-.main-content {
-  flex: 1;
-}
-.account-card {
-  background: var(--color-green-white);
-  border-radius: 16px;
-  box-shadow: var(--shadow-3);
-  padding: 60px 40px 40px;
-  position: relative;
-  min-height: 400px;
-}
-.card-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-green-primary);
-  text-align: center;
-  position: absolute;
-  top: -20px;
-  background: var(--color-green-light);
-  width: 80%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 12px;
-}
-
-/* Loading & Error */
-.loading-state,
-.error-state {
+<style scoped>
+.order-page {
   display: flex;
   flex-direction: column;
+  gap: var(--space-5);
+  animation: fade-up 0.5s var(--ease-out);
+}
+.order-page__back {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 60px 0;
+  gap: var(--space-2);
+  align-self: flex-start;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-muted);
 }
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--color-green-primary);
+.order-page__back:hover {
+  color: var(--color-primary);
+}
+.order-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.order-page__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black);
+}
+.order-page__head p {
+  font-size: var(--text-sm);
+}
+.order-page__cancel {
+  color: var(--color-danger);
+}
+.order-page__cancel:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.order-page__grid {
+  display: grid;
+  /* minmax(0, …) lets the column shrink below its content (no page overflow). */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .order-page__grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+
+.success {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border-color: var(--color-success);
+  background: linear-gradient(135deg, var(--color-success-soft), var(--color-surface));
+  overflow: hidden;
+}
+.success__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
+  background: var(--color-success);
+  color: #fff;
+  font-size: 1.6rem;
+  animation: pop 0.7s var(--ease-spring);
 }
-@keyframes spin {
+.success__title {
+  font-size: var(--text-xl);
+}
+.success__burst {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 3.25rem;
+  pointer-events: none;
+}
+.success__burst span {
+  position: absolute;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 2px;
+  background: hsl(calc(var(--i) * 30) 80% 55%);
+  animation: confetti 1.1s var(--ease-out) forwards;
+  transform: rotate(calc(var(--i) * 30deg)) translateY(0);
+  opacity: 0;
+}
+@keyframes confetti {
   0% {
-    transform: rotate(0deg);
+    opacity: 1;
+    transform: rotate(calc(var(--i) * 30deg)) translateY(0);
   }
   100% {
-    transform: rotate(360deg);
+    opacity: 0;
+    transform: rotate(calc(var(--i) * 30deg)) translateY(-70px);
   }
 }
 
-/* Header Grid */
-.order-header-details {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #eee;
-}
-.header-grid {
+.tracker {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
 }
-.header-item {
+.tracker::before,
+.tracker::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 1.25rem;
+  inset-inline-start: 12.5%;
+  block-size: 3px;
+  border-radius: var(--radius-full);
+}
+.tracker::before {
+  inset-inline-end: 12.5%;
+  background: var(--color-surface-sunken);
+}
+.tracker::after {
+  /* The line spans the centers of the first and last dots (75% of the width). */
+  inline-size: calc(75% * var(--progress));
+  background: linear-gradient(90deg, var(--gold-400), var(--gold-600));
+  transition: inline-size 1s var(--ease-out);
+}
+.tracker__step {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
 }
-.header-item .label {
-  font-size: 12px;
-  color: #888;
+.tracker__dot {
+  display: grid;
+  place-items: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-text-subtle);
+  font-size: 1.1rem;
+  transition:
+    background-color var(--duration-base) ease,
+    border-color var(--duration-base) ease;
 }
-.header-item .value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #333;
+.tracker__step.is-done .tracker__dot {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
 }
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 14px;
-  width: fit-content;
+.tracker__step.is-current .tracker__dot {
+  animation: pulse-ring 1.8s ease-out infinite;
 }
-.status-pending {
-  background: #fffbeb;
-  color: #b45309;
+.tracker__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-muted);
 }
-.status-processing {
-  background: #eff6ff;
-  color: #1d4ed8;
+.tracker__step.is-done .tracker__label {
+  color: var(--color-text);
 }
-.status-shipped {
-  background: #f0fdf4;
-  color: #15803d;
-}
-.status-delivered {
-  background: #dcfce7;
-  color: #166534;
-}
-.status-cancelled {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-/* Sections */
-.section-block {
-  margin-bottom: 30px;
-}
-.section-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a2e;
-  margin-bottom: 15px;
-  border-right: 4px solid var(--color-green-primary);
-  padding-right: 10px;
-}
-
-/* Address */
-.address-box {
-  background: #f9fafb;
-  padding: 15px;
-  border-radius: 10px;
-  border: 1px solid #eee;
-}
-.addr-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.addr-header strong {
-  color: #333;
-}
-.addr-header .phone {
-  direction: ltr;
-  color: #555;
-  font-size: 14px;
-}
-.addr-text {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
-}
-
-/* Products List */
-.products-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-.product-row {
+.tracking {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 10px;
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 10px;
+  gap: var(--space-2);
+  margin-block-start: var(--space-5);
+  font-size: var(--text-sm);
 }
-.prod-img {
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f0f0f0;
+.block-title {
+  margin-block-end: var(--space-4);
+  font-size: var(--text-lg);
+}
+.items {
+  display: flex;
+  flex-direction: column;
+}
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border);
+}
+.item:last-child {
+  border: none;
+}
+.item__img {
+  inline-size: 4rem;
   flex-shrink: 0;
 }
-.prod-img img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.prod-info {
-  flex: 1;
-}
-.prod-info h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 5px;
-}
-.prod-meta {
+.item__info {
   display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #666;
+  flex: 1 1 10rem;
+  flex-direction: column;
+  min-inline-size: 0;
 }
-.prod-meta .price {
-  color: var(--color-green-primary);
-  font-weight: 600;
+/* On narrow screens the line total drops under the name instead of squeezing it. */
+.item > strong {
+  margin-inline-start: auto;
 }
-.prod-total {
-  font-weight: 700;
-  color: #1a1a2e;
-  font-size: 16px;
-  min-width: 80px;
-  text-align: left;
+.item__name {
+  font-weight: var(--weight-semibold);
 }
-
-/* Summary */
-.summary-block {
-  background: #f9fafb;
-  padding: 20px;
-  border-radius: 12px;
+a.item__name:hover {
+  color: var(--color-primary);
 }
-.summary-rows {
+.totals {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
 }
-.row {
+.totals div {
   display: flex;
   justify-content: space-between;
-  font-size: 15px;
-  color: #555;
+  gap: var(--space-3);
 }
-.row.discount {
-  color: #059669;
+.totals dt {
+  color: var(--color-text-muted);
 }
-.row.total {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #ccc;
-  font-weight: 800;
-  font-size: 18px;
-  color: #1a1a2e;
+.totals__discount dd {
+  color: var(--color-success);
 }
-
-/* Footer */
-.actions-footer {
-  margin-top: 20px;
+.totals__total {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px dashed var(--color-border);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-black);
 }
-.back-btn {
+.totals__total dt {
+  color: var(--color-text) !important;
+}
+.payment {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  color: #555;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: var(--space-2);
+  margin-block-start: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
-.back-btn:hover {
-  background: #f5f5f5;
-  border-color: #bbb;
-  color: #333;
+.addr {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-style: normal;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.addr strong {
+  color: var(--color-text);
+}
+.addr__phone {
+  align-self: flex-start;
 }
 </style>

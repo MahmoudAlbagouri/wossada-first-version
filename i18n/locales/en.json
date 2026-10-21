@@ -1,6 +1,498 @@
 {
-  "welcome": "Welcome to Wessada",
-  "promo_text": "Free delivery for orders over 20,000 and above",
-  "view_all": "View All",
-  "all_products": "All Products"
+  "common": {
+    "breadcrumbs": "Breadcrumbs",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "next": "Next",
+    "previous": "Previous",
+    "pagination": "Pagination",
+    "remove": "Remove",
+    "save": "Save changes",
+    "skipToContent": "Skip to content",
+    "soon": "Soon",
+    "viewAll": "View all"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Can't reach the server. Check your connection."
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Enter a valid email address",
+    "phone": "Enter a valid mobile number",
+    "minLength": "Must be at least {min} characters",
+    "maxLength": "Must be at most {max} characters",
+    "min": "Minimum value is {min}",
+    "max": "Maximum value is {max}",
+    "passwordLength": "Password must be at least {min} characters",
+    "passwordMismatch": "Passwords do not match",
+    "otp": "Enter the {length}-digit code"
+  },
+  "nav": {
+    "home": "Home",
+    "shop": "Shop",
+    "main": "Main navigation",
+    "categories": "Categories",
+    "allProducts": "All products",
+    "shopCategory": "Shop {name}",
+    "viewAllIn": "All {name}",
+    "about": "About us",
+    "contact": "Contact us",
+    "privacy": "Privacy policy",
+    "terms": "Terms & conditions",
+    "shippingReturns": "Shipping & returns",
+    "cart": "Cart"
+  },
+  "header": {
+    "freeShipping": "Free shipping on orders from {amount}",
+    "deliveryAll": "Delivery across Egypt",
+    "openMenu": "Open menu",
+    "actions": "Account and cart",
+    "hello": "Welcome"
+  },
+  "search": {
+    "label": "Search",
+    "placeholder": "Search products, categories or brands…",
+    "submit": "Search",
+    "clear": "Clear search",
+    "noResults": "No results for “{q}”",
+    "viewAll": "All results for “{q}”"
+  },
+  "footer": {
+    "shop": "Shop",
+    "help": "Help",
+    "contact": "Get in touch",
+    "branches": "Our branches",
+    "securePayment": "Pay securely with",
+    "whatsapp": "Chat on WhatsApp",
+    "whatsappGreeting": "Hello, I have a question",
+    "copyright": "© {year} {name}. All rights reserved."
+  },
+  "home": {
+    "welcome": "Welcome",
+    "featured": "Featured",
+    "shopNow": "Shop now",
+    "slideOf": "Slide {n} of {total}",
+    "goToSlide": "Go to slide {n}",
+    "categoriesEyebrow": "Discover",
+    "shopByCategory": "Shop by category",
+    "newArrivals": "New arrivals",
+    "justIn": "Just in"
+  },
+  "features": {
+    "title": "Why choose us",
+    "deliveryTitle": "Nationwide delivery",
+    "deliveryText": "We deliver to your door anywhere in Egypt.",
+    "codTitle": "Cash on delivery",
+    "codText": "Pay when your order arrives.",
+    "qualityTitle": "Guaranteed quality",
+    "qualityText": "Carefully chosen materials, built to last.",
+    "supportTitle": "Customer support",
+    "supportText": "Our team helps you before and after you buy."
+  },
+  "catalog": {
+    "allProducts": "All products",
+    "allProductsDescription": "Browse our full collection of furniture and home essentials.",
+    "categoryDescription": "Shop {name} at great prices with nationwide delivery.",
+    "searchTitle": "Search results for “{q}”",
+    "subcategories": "Subcategories",
+    "results": "No products | 1 product | {count} products",
+    "showResults": "Show {count} products",
+    "filters": "Filters",
+    "clearAll": "Clear all",
+    "noFilters": "No filters for these results.",
+    "price": "Price",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "colors": "Color",
+    "sizes": "Size",
+    "materials": "Material",
+    "brands": "Brand",
+    "emptyTitle": "No matching products",
+    "emptyText": "Try other filters or a different search.",
+    "sort": {
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "top_rated": "Top rated",
+      "most_reviewed": "Most reviewed"
+    }
+  },
+  "product": {
+    "from": "From",
+    "youSave": "Save {amount}",
+    "new": "New",
+    "outOfStock": "Out of stock",
+    "inStock": "In stock",
+    "onlyLeft": "Only {count} left",
+    "freeShipping": "Free shipping",
+    "freeShippingOver": "Shipping is free on orders from {amount}.",
+    "deliveryAll": "Delivery nationwide",
+    "cod": "Cash on delivery",
+    "easyReturns": "Easy returns",
+    "chooseOptions": "Choose options",
+    "selectOptionsFirst": "Select options first",
+    "combinationUnavailable": "This combination isn't available, try another option.",
+    "color": "Color",
+    "size": "Size",
+    "material": "Material",
+    "sku": "SKU",
+    "category": "Category",
+    "share": "Share:",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "gallery": "Product images",
+    "imageN": "Image {n}",
+    "description": "Description",
+    "specifications": "Specifications",
+    "dimensions": "Dimensions (L × W × H)",
+    "shippingReturns": "Shipping & returns",
+    "noDescription": "No detailed description yet.",
+    "shippingText": "Shipping is calculated from your city and the order weight, and shown before you confirm.",
+    "returnsText": "You can return an item within 14 days of delivery in its original condition.",
+    "similar": "Similar products",
+    "youMayLike": "You may also like"
+  },
+  "reviews": {
+    "title": "Customer reviews",
+    "count": "No reviews | 1 review | {count} reviews",
+    "basedOn": "No reviews yet | Based on 1 review | Based on {count} reviews",
+    "ratedOutOf": "Rated {value} out of 5",
+    "stars": "{n} stars",
+    "yourRating": "Your rating",
+    "ratingRequired": "Choose a star rating",
+    "comment": "Your review",
+    "commentPlaceholder": "Tell others about the product…",
+    "write": "Write a review",
+    "submit": "Submit review",
+    "thanks": "Thanks for your review!",
+    "alreadyReviewed": "You've reviewed this product",
+    "loginToReview": "Sign in to write a review",
+    "verified": "Verified buyer",
+    "anonymous": "Customer",
+    "emptyTitle": "No reviews yet",
+    "emptyText": "Be the first to review this product."
+  },
+  "cart": {
+    "title": "Shopping cart",
+    "items": "Cart items",
+    "itemsCount": "Empty | 1 item in your cart | {count} items in your cart",
+    "add": "Add to cart",
+    "added": "Added to your cart",
+    "addedShort": "Added",
+    "view": "View cart",
+    "remove": "Remove from cart",
+    "removed": "{name} was removed",
+    "clear": "Empty cart",
+    "clearConfirm": "Empty your cart?",
+    "clearConfirmText": "All items will be removed.",
+    "quantity": "Quantity",
+    "increase": "Increase quantity",
+    "decrease": "Decrease quantity",
+    "onlyAvailable": "Only {count} available, lower the quantity",
+    "unavailableTitle": "Some items aren't available in that quantity",
+    "unavailableText": "Adjust or remove the highlighted items to check out.",
+    "summary": "Cart summary",
+    "subtotal": "Subtotal",
+    "savings": "You save",
+    "shipping": "Shipping",
+    "shippingAtCheckout": "Calculated at checkout",
+    "total": "Total",
+    "checkout": "Checkout",
+    "secure": "Your data is protected",
+    "freeShippingLeft": "Add {amount} more for free shipping",
+    "freeShippingUnlocked": "Your order ships free!",
+    "continueShopping": "Continue shopping",
+    "startShopping": "Start shopping",
+    "emptyTitle": "Your cart is empty",
+    "emptyText": "Browse our products and add what you like."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "emptyText": "Add products to your cart first.",
+    "shippingAddress": "Delivery address",
+    "addAddressHint": "Add an address to calculate shipping.",
+    "selectAddressFirst": "Choose a delivery address to see your total.",
+    "payment": "Payment method",
+    "cod": "Cash on delivery",
+    "codHint": "Pay in cash when your order arrives",
+    "online": "Card payment",
+    "onlineHint": "Visa, Mastercard and wallets",
+    "notes": "Order notes",
+    "notesPlaceholder": "e.g. call before delivery, best time to receive…",
+    "orderSummary": "Order summary",
+    "couponPlaceholder": "Discount code",
+    "apply": "Apply",
+    "couponApplied": "Discount applied",
+    "couponCode": "Code: {code}",
+    "discount": "Discount",
+    "free": "Free",
+    "placeOrder": "Place order",
+    "agree": "By placing your order you agree to the"
+  },
+  "address": {
+    "add": "Add address",
+    "edit": "Edit address",
+    "save": "Save address",
+    "added": "Address added",
+    "updated": "Address updated",
+    "deleted": "Address deleted",
+    "deleteConfirm": "Delete this address?",
+    "hint": "Saved delivery addresses for your orders.",
+    "label": "Address label",
+    "labelPlaceholder": "Home, Work…",
+    "defaultLabel": "Home",
+    "fullName": "Recipient name",
+    "phone": "Recipient mobile",
+    "governorate": "Governorate",
+    "chooseGovernorate": "Choose a governorate",
+    "city": "City / area",
+    "chooseCity": "Choose a city",
+    "street": "Street address",
+    "streetPlaceholder": "Street, building, floor, apartment",
+    "landmark": "Landmark",
+    "landmarkPlaceholder": "Near…",
+    "setDefault": "Make this my default address",
+    "default": "Default",
+    "emptyTitle": "No saved addresses",
+    "emptyText": "Add an address for faster checkout."
+  },
+  "account": {
+    "title": "My account",
+    "menu": "Account menu",
+    "profile": "My profile",
+    "profileHint": "Update the name shown on your orders.",
+    "profileSaved": "Profile saved",
+    "memberSince": "Member since",
+    "orders": "My orders",
+    "wishlist": "Wishlist",
+    "addresses": "Addresses",
+    "notifications": "Notifications",
+    "dashboard": "Dashboard",
+    "changePassword": "Change password",
+    "changePasswordHint": "We ask for your current password to keep your account safe.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "updatePassword": "Update password",
+    "passwordChanged": "Password changed"
+  },
+  "orders": {
+    "hint": "Track your orders and download invoices.",
+    "order": "Order",
+    "itemsCount": "No items | 1 item | {count} items",
+    "items": "Items",
+    "back": "All orders",
+    "invoice": "Invoice",
+    "tracking": "Tracking number",
+    "cancel": "Cancel order",
+    "keep": "Keep order",
+    "cancelConfirm": "Cancel this order?",
+    "cancelConfirmText": "This can't be undone.",
+    "cancelled": "Order cancelled",
+    "cancelledText": "This order was cancelled and won't be shipped.",
+    "returnedText": "This order was returned.",
+    "thanksTitle": "Thank you! Your order is in",
+    "thanksText": "We'll contact you to confirm delivery. Track it right here.",
+    "notFound": "Order not found",
+    "emptyTitle": "No orders yet",
+    "emptyText": "Your orders will show up here.",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled",
+      "returned": "Returned",
+      "redelivery": "Redelivery"
+    },
+    "payment": {
+      "cod": "Cash on delivery",
+      "online": "Online payment"
+    }
+  },
+  "wishlist": {
+    "add": "Add to wishlist",
+    "remove": "Remove from wishlist",
+    "added": "Saved to your wishlist",
+    "removed": "Removed from your wishlist",
+    "view": "View wishlist",
+    "hint": "Products you saved for later.",
+    "emptyTitle": "Your wishlist is empty",
+    "emptyText": "Tap ♡ on any product to save it here."
+  },
+  "notifications": {
+    "hint": "Updates about your orders and account.",
+    "markAll": "Mark all as read",
+    "unread": "Unread",
+    "emptyTitle": "No notifications",
+    "emptyText": "We'll let you know about your orders here."
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "register": "Sign up",
+    "loginRequired": "Please sign in to continue",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to see your orders and cart.",
+    "registerTitle": "Create your account",
+    "registerSubtitle": "It takes a minute and makes shopping faster.",
+    "identifier": "Email or mobile number",
+    "identifierPlaceholder": "name{'@'}example.com / 01xxxxxxxxx",
+    "identifierRequired": "Enter your email or mobile number",
+    "password": "Password",
+    "passwordRequired": "Enter your password",
+    "passwordHint": "At least 8 characters",
+    "confirmPassword": "Confirm password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "name": "Full name",
+    "email": "Email",
+    "phone": "Mobile number",
+    "phonePlaceholder": "01xxxxxxxxx",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "New here?",
+    "haveAccount": "Already have an account?",
+    "createAccount": "Create account",
+    "agree": "By signing up you agree to the",
+    "welcome": "Welcome, {name}!",
+    "welcomeBack": "Welcome back, {name}",
+    "forgotTitle": "Reset your password",
+    "forgotSubtitle": "Enter your email and we'll send you a code.",
+    "sendCode": "Send code",
+    "backToLogin": "Back to sign in",
+    "verifyTitle": "Enter the code",
+    "verifySubtitle": "If {email} has an account, a code is on its way.",
+    "otpLabel": "Verification code",
+    "otpDigit": "Digit {n}",
+    "verify": "Verify",
+    "noCode": "Didn't get it?",
+    "resend": "Resend",
+    "resendIn": "Resend in {seconds}s",
+    "codeResent": "A new code was sent",
+    "changeEmail": "Use a different email",
+    "resetTitle": "Choose a new password",
+    "resetSubtitle": "Pick a strong password you haven't used before.",
+    "savePassword": "Save password",
+    "passwordReset": "Password updated, please sign in"
+  },
+  "authLayout": {
+    "backToStore": "Back to store",
+    "perkDelivery": "Delivery across Egypt",
+    "perkQuality": "Quality you can trust",
+    "perkReturns": "Easy 14-day returns"
+  },
+  "contact": {
+    "title": "Contact us",
+    "intro": "The {brand} team is happy to answer your questions and help you choose.",
+    "call": "Call us",
+    "whatsapp": "WhatsApp",
+    "whatsappCta": "Start a chat",
+    "email": "Email",
+    "visit": "Address"
+  },
+  "errorPage": {
+    "title": "Something went wrong",
+    "text": "Sorry, something unexpected happened. Please try again shortly.",
+    "notFoundTitle": "Page not found",
+    "notFoundText": "The page may have moved or been removed. Browse our products or head home.",
+    "home": "Back to home"
+  },
+  "info": {
+    "questions": "Have a question?",
+    "about": {
+      "title": "About us",
+      "intro": "{brand} is an Egyptian furniture store combining modern design with lasting quality.",
+      "sections": [
+        {
+          "title": "Our story",
+          "body": "We started with a simple idea: every home deserves beautiful, comfortable furniture at a fair price. Today we hand-pick every piece and follow it through production so it reaches you in perfect shape."
+        },
+        {
+          "title": "What we offer",
+          "body": "Bedrooms, living rooms, dining sets, bedding and decor, delivered nationwide with cash on delivery."
+        },
+        {
+          "title": "Our promise",
+          "body": "Trusted materials, clear prices with no hidden fees, and support that stays with you after delivery."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "intro": "We respect your privacy. This page explains what {brand} collects and how we use and protect it.",
+      "sections": [
+        {
+          "title": "What we collect",
+          "body": "Your name, email, mobile number, the delivery addresses you enter and your order details."
+        },
+        {
+          "title": "How we use it",
+          "body": "To fulfil and communicate about your orders and to improve our service. We never sell your data."
+        },
+        {
+          "title": "Keeping it safe",
+          "body": "Passwords are encrypted and never visible to anyone, and connections to the site are secured."
+        },
+        {
+          "title": "Your rights",
+          "body": "You can edit your details from your account or contact us to delete your account."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms & conditions",
+      "intro": "By using the {brand} website you agree to the following terms.",
+      "sections": [
+        {
+          "title": "Orders and prices",
+          "body": "Prices are in Egyptian pounds. Orders are confirmed after review and a call from our team."
+        },
+        {
+          "title": "Availability",
+          "body": "We keep stock up to date; if an item becomes unavailable after you order, we'll let you know and cancel it at no cost."
+        },
+        {
+          "title": "Your account",
+          "body": "You're responsible for keeping your sign-in details private and for activity on your account."
+        },
+        {
+          "title": "Changes",
+          "body": "We may update these terms from time to time; changes apply from the date they're published."
+        }
+      ]
+    },
+    "shippingReturns": {
+      "title": "Shipping & returns",
+      "intro": "Everything you need to know about {brand} deliveries and returns.",
+      "sections": [
+        {
+          "title": "Where and when",
+          "body": "We deliver across Egypt within 3 to 10 business days depending on the area and stock."
+        },
+        {
+          "title": "Shipping fees",
+          "body": "Fees depend on your city and the order weight and are shown before you confirm. Some products ship free."
+        },
+        {
+          "title": "Returns",
+          "body": "You can request a return within 14 days of delivery if the item is unused and in its original condition."
+        },
+        {
+          "title": "Damaged items",
+          "body": "Inspect your order on delivery; if anything is damaged, contact us right away and we'll replace it at our cost."
+        }
+      ]
+    }
+  }
 }
