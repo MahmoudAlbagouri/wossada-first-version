@@ -3,7 +3,7 @@ import type { HomeSection } from '~/types/models';
 
 const { t, locale } = useI18n();
 const catalog = useCatalogService();
-const config = useRuntimeConfig();
+const siteUrl = useSiteUrl();
 const { brandName, tagline, brandDescription, logo, contact, social } = useBrand();
 
 const { data: sections } = await useAsyncData('home', () => catalog.getHome(), {
@@ -27,12 +27,12 @@ useJsonLd(
     '@graph': [
       {
         '@type': 'FurnitureStore',
-        '@id': `${config.public.siteUrl}/#store`,
+        '@id': `${siteUrl}/#store`,
         name: brandName.value,
         description: brandDescription.value,
-        url: config.public.siteUrl,
-        logo: `${config.public.siteUrl}${logo}`,
-        image: `${config.public.siteUrl}${logo}`,
+        url: siteUrl,
+        logo: `${siteUrl}${logo}`,
+        image: `${siteUrl}${logo}`,
         telephone: contact.phone,
         email: contact.email,
         priceRange: '$$',
@@ -40,13 +40,13 @@ useJsonLd(
       },
       {
         '@type': 'WebSite',
-        '@id': `${config.public.siteUrl}/#website`,
-        url: config.public.siteUrl,
+        '@id': `${siteUrl}/#website`,
+        url: siteUrl,
         name: brandName.value,
         inLanguage: locale.value,
         potentialAction: {
           '@type': 'SearchAction',
-          target: `${config.public.siteUrl}/products?q={search_term_string}`,
+          target: `${siteUrl}/products?q={search_term_string}`,
           'query-input': 'required name=search_term_string',
         },
       },

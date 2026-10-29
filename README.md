@@ -18,9 +18,10 @@ npm run dev               # http://localhost:3000
 | `npm run build` / `node .output/server/index.mjs` | Production build / run it |
 | `npm run typecheck` | `vue-tsc` over the whole app (strict mode) |
 
-`NUXT_PUBLIC_API_BASE` and `NUXT_PUBLIC_SITE_URL` are read at build time for
-image domains and the sitemap, so set them before `npm run build` as well as at
-runtime.
+`NUXT_PUBLIC_API_BASE` is read at build time for image domains, so set it
+before `npm run build` as well as at runtime. Set `NUXT_PUBLIC_SITE_URL` (the
+store's public URL) in production too; without it, share links, canonical tags
+and the sitemap fall back to the domain each request came in on.
 
 ## Structure
 

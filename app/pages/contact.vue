@@ -3,7 +3,7 @@ const { t } = useI18n();
 const { text } = useLocalized();
 const { brandName, contact, address, social } = useBrand();
 const appConfig = useAppConfig();
-const config = useRuntimeConfig();
+const siteUrl = useSiteUrl();
 
 usePageSeo({ title: t('contact.title'), description: t('contact.intro', { brand: brandName.value }) });
 
@@ -38,7 +38,7 @@ useJsonLd(
     mainEntity: {
       '@type': 'Organization',
       name: brandName.value,
-      url: config.public.siteUrl,
+      url: siteUrl,
       sameAs: Object.values(social).filter(Boolean),
       contactPoint: [{ '@type': 'ContactPoint', telephone: contact.phone, email: contact.email, contactType: 'customer service' }],
     },

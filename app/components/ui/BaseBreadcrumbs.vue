@@ -4,7 +4,7 @@ import type { Crumb } from '~/types/ui';
 const props = defineProps<{ items: Crumb[] }>();
 
 const { t } = useI18n();
-const config = useRuntimeConfig();
+const siteUrl = useSiteUrl();
 
 const crumbs = computed<Crumb[]>(() => [{ label: t('nav.home'), to: '/' }, ...props.items]);
 
@@ -17,7 +17,7 @@ useJsonLd(
       '@type': 'ListItem',
       position: index + 1,
       name: crumb.label,
-      ...(crumb.to ? { item: `${config.public.siteUrl}${crumb.to}` } : {}),
+      ...(crumb.to ? { item: `${siteUrl}${crumb.to}` } : {}),
     })),
   }),
   'breadcrumbs',

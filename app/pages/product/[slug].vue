@@ -65,7 +65,8 @@ useIntersectionObserver(buyBox, ([entry]) => {
 });
 
 // --- Sharing ---
-const pageUrl = computed(() => `${config.public.siteUrl}${route.path}`);
+const siteUrl = useSiteUrl();
+const pageUrl = computed(() => `${siteUrl}${route.path}`);
 const shareLinks = computed(() => [
   { name: 'WhatsApp', icon: 'ph:whatsapp-logo', href: `https://wa.me/?text=${encodeURIComponent(`${title.value} ${pageUrl.value}`)}` },
   { name: 'Facebook', icon: 'ph:facebook-logo', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl.value)}` },

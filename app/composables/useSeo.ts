@@ -18,17 +18,17 @@ const clip = (text: string) =>
  * Accepts getters so values update when async data arrives.
  */
 export function usePageSeo(input: MaybeRefOrGetter<PageSeo>) {
-  const config = useRuntimeConfig();
+  const siteUrl = useSiteUrl();
   const route = useRoute();
   const { brandName, brandDescription, ogImage } = useBrand();
 
   const seo = computed(() => toValue(input));
   const absolute = (url?: string | null) =>
-    !url ? undefined : /^https?:\/\//.test(url) ? url : `${config.public.siteUrl}${url}`;
+    !url ? undefined : /^https?:\/\//.test(url) ? url : `${siteUrl}${url}`;
 
   const description = computed(() => clip((seo.value.description || brandDescription.value).replace(/\s+/g, ' ').trim()));
   const image = computed(() => absolute(seo.value.image) ?? absolute(ogImage));
-  const canonical = computed(() => `${config.public.siteUrl}${route.path}`);
+  const canonical = computed(() => `${siteUrl}${route.path}`);
 
   useSeoMeta({
     title: () => seo.value.title || undefined,

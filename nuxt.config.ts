@@ -1,5 +1,6 @@
 const apiBase = process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3006';
-const siteUrl = (process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+/** Public URL of the store. Unset: absolute links use the domain each request came in on (see `useSiteUrl`). */
+const siteUrl = (process.env.NUXT_PUBLIC_SITE_URL || process.env.NUXT_SITE_URL || '').replace(/\/$/, '') || undefined;
 
 /** Hosts @nuxt/image may fetch and optimize (the API + any extra CDN). */
 const imageDomains = [
@@ -72,7 +73,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase,
-      siteUrl,
       siteName: process.env.NUXT_PUBLIC_SITE_NAME || '',
       /** `ipx` optimizes images through the Nuxt server; `none` serves them as-is. */
       imageProvider: process.env.NUXT_PUBLIC_IMAGE_PROVIDER || 'ipx',
