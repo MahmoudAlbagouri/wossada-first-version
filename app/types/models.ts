@@ -149,7 +149,17 @@ export interface CategoryPage extends CatalogResult {
   };
 }
 
-export type ProductSort = 'newest' | 'price_asc' | 'price_desc' | 'top_rated' | 'most_reviewed';
+/** Header search panel (`GET /products/suggest`). */
+export interface SearchSuggestions {
+  products: Product[];
+  /** Every product matching the term. */
+  total: number;
+  categories: { id: Id; slug: string; name: string; image: string | null }[];
+  brands: { id: Id; name: string; logo: string | null }[];
+}
+
+/** `relevance` (best match first) only applies while searching. */
+export type ProductSort = 'relevance' | 'newest' | 'price_asc' | 'price_desc' | 'top_rated' | 'most_reviewed';
 
 export interface ProductQuery {
   page?: number;

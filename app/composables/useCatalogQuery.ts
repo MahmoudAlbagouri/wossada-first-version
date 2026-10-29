@@ -1,7 +1,10 @@
 import type { LocationQueryRaw } from 'vue-router';
 import type { ProductQuery, ProductSort } from '~/types/models';
 
-export const PRODUCT_SORTS: readonly ProductSort[] = ['newest', 'price_asc', 'price_desc', 'top_rated', 'most_reviewed'];
+export const PRODUCT_SORTS: readonly ProductSort[] = ['relevance', 'newest', 'price_asc', 'price_desc', 'top_rated', 'most_reviewed'];
+
+/** Best match while searching, newest otherwise. */
+const defaultSort = (q: unknown): ProductSort => (q ? 'relevance' : 'newest');
 
 /** Multi-select filters and the API parameter each one maps to. */
 const LIST_FILTERS = {
@@ -25,11 +28,13 @@ export function useCatalogQuery(pageSize = 12) {
 
   const state = computed(() => {
     const q = route.query;
+    const term = queryString(q, 'q') ?? '';
     const sort = queryString(q, 'sort') as ProductSort | undefined;
+    const validSort = !!sort && PRODUCT_SORTS.includes(sort) && (sort !== 'relevance' || !!term);
     return {
       page: Math.max(1, queryNumber(q, 'page') ?? 1),
-      sort: sort && PRODUCT_SORTS.includes(sort) ? sort : ('newest' as ProductSort),
-      q: queryString(q, 'q') ?? '',
+      sort: validSort ? sort : defaultSort(term),
+      q: term,
       min: queryNumber(q, 'min'),
       max: queryNumber(q, 'max'),
       colors: queryList(q, 'colors'),
@@ -69,7 +74,7 @@ export function useCatalogQuery(pageSize = 12) {
       else next[key] = Array.isArray(value) ? value.join(',') : String(value);
     }
     if (!('page' in patch) || next.page === '1') delete next.page;
-    if (next.sort === 'newest') delete next.sort;
+    if (next.sort === defaultSort(next.q) || (next.sort === 'relevance' && !next.q)) delete next.sort;
     return router.push({ query: next });
   }
 

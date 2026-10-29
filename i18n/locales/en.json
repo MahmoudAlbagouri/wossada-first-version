@@ -60,7 +60,16 @@
     "submit": "Search",
     "clear": "Clear search",
     "noResults": "No results for “{q}”",
-    "viewAll": "All results for “{q}”"
+    "noResultsHint": "Try a shorter word or check the spelling.",
+    "viewAll": "All results for “{q}” ({count})",
+    "recent": "Recent searches",
+    "clearRecent": "Clear all",
+    "removeRecent": "Remove “{q}” from history",
+    "categories": "Categories",
+    "brands": "Brands",
+    "products": "Products",
+    "category": "Category",
+    "brand": "Brand"
   },
   "footer": {
     "shop": "Shop",
@@ -116,6 +125,7 @@
     "emptyTitle": "No matching products",
     "emptyText": "Try other filters or a different search.",
     "sort": {
+      "relevance": "Best match",
       "newest": "Newest",
       "price_asc": "Price: low to high",
       "price_desc": "Price: high to low",

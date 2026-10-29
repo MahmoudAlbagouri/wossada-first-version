@@ -15,7 +15,10 @@ const resultsTop = ref<HTMLElement | null>(null);
 const products = computed(() => props.result?.data ?? []);
 const meta = computed(() => props.result?.meta);
 const sortOptions = computed(() =>
-  PRODUCT_SORTS.map((value) => ({ value, label: t(`catalog.sort.${value}`) })),
+  PRODUCT_SORTS.filter((value) => value !== 'relevance' || !!state.value.q).map((value) => ({
+    value,
+    label: t(`catalog.sort.${value}`),
+  })),
 );
 
 const sort = computed({

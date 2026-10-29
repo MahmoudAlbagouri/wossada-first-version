@@ -10,6 +10,7 @@ import type {
   ProductQuery,
   ProductReviews,
   Review,
+  SearchSuggestions,
   Size,
 } from '~/types/models';
 
@@ -40,7 +41,7 @@ export function useCatalogService() {
     listProducts: (query: ProductQuery = {}) =>
       api<CatalogResult>('/products', { query: toApiQuery({ ...query }) }),
 
-    searchSuggestions: (q: string) => api<Product[]>('/products/search', { query: { q } }),
+    searchSuggestions: (q: string) => api<SearchSuggestions>('/products/suggest', { query: { q } }),
 
     getProduct: (slug: string) => api<Product>(`/products/detail/${encodeURIComponent(slug)}`),
 
