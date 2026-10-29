@@ -6,6 +6,7 @@ import type { AdminLanguage } from '~/utils/translation';
 const props = defineProps<{ productId?: string }>();
 
 const admin = useAdminService();
+const router = useRouter();
 const toast = useToast();
 const { confirm } = useConfirm();
 const { pick } = useLocalized();
@@ -158,6 +159,16 @@ onMounted(async () => {
 
 const dirty = computed(() => !loading.value && JSON.stringify(values) !== snapshot);
 
+/**
+ * History back when we came from the list, so it reopens on the same page,
+ * filters and scroll position; a direct link or new tab starts at page 1.
+ */
+function backToList() {
+  const back = router.options.history.state.back;
+  if (typeof back === 'string' && router.resolve(back).path === '/admin/products') router.back();
+  else navigateTo('/admin/products');
+}
+
 onBeforeRouteLeave(async () => {
   if (!dirty.value || submitting.value) return true;
   return confirm({ title: 'تغييرات غير محفوظة', message: 'هل تريد المغادرة دون حفظ؟', tone: 'danger', confirmText: 'مغادرة', cancelText: 'البقاء' });
@@ -258,7 +269,7 @@ const errorCount = computed(() => Object.keys(errors).length);
 <template>
   <AdminPage :title="product ? `تعديل: ${values.tr.ar.name || 'منتج'}` : 'منتج جديد'" :description="product ? undefined : 'املأ البيانات الأساسية ثم أضف الاختيارات (ألوان/مقاسات) إن وُجدت.'">
     <template #actions>
-      <BaseButton to="/admin/products" variant="outline" icon="ph:arrow-left">رجوع</BaseButton>
+      <BaseButton variant="outline" icon="ph:arrow-left" @click="backToList">رجوع</BaseButton>
       <BaseButton v-if="product" :to="`/product/${product.slug}`" target="_blank" variant="outline" icon="ph:arrow-square-out">عرض</BaseButton>
       <BaseButton type="submit" form="product-form" :loading="submitting" :disabled="loading" icon="ph:floppy-disk">
         {{ product ? 'حفظ التغييرات' : 'إضافة المنتج' }}

@@ -56,14 +56,12 @@ const { items, loading, modalOpen, editing, form, openCreate, openEdit, submit, 
   messages: { created: 'تم إنشاء المستخدم', updated: 'تم حفظ بيانات المستخدم', deleted: 'تم حذف المستخدم' },
 });
 
-const search = ref('');
-const role = ref<UserRole | 'all'>('all');
-const page = ref(1);
+const { page, filter, search, searchTerm, keepPageInRange } = useAdminListQuery();
+const role = filter<UserRole | 'all'>('role', 'all');
 const PAGE_SIZE = 15;
-watch([search, role], () => (page.value = 1));
 
 const filtered = computed(() => {
-  const term = search.value.trim().toLowerCase();
+  const term = searchTerm.value.toLowerCase();
   return items.value.filter(
     (user) =>
       (role.value === 'all' || user.role === role.value) &&
@@ -72,6 +70,7 @@ const filtered = computed(() => {
 });
 const rows = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)));
+keepPageInRange(() => (loading.value ? undefined : totalPages.value));
 
 const roleTabs = computed(() => [
   { key: 'all' as const, label: 'الكل', count: items.value.length },

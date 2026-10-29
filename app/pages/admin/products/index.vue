@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { refDebounced } from '@vueuse/core';
 import type { Product } from '~/types/models';
 import type { TableColumn } from '~/types/ui';
 
@@ -10,16 +9,13 @@ const { price, pick } = useLocalized();
 
 useHead({ title: 'المنتجات' });
 
-const search = ref('');
-const debounced = refDebounced(search, 350);
-const categoryId = ref('');
-const page = ref(1);
-watch([debounced, categoryId], () => (page.value = 1));
+const { page, filter, search, searchTerm, keepPageInRange } = useAdminListQuery();
+const categoryId = filter('category');
 
 const query = computed(() => ({
   page: page.value,
   limit: 15,
-  searchTerm: debounced.value.trim() || undefined,
+  searchTerm: searchTerm.value || undefined,
   categoryId: categoryId.value || undefined,
 }));
 
@@ -27,6 +23,7 @@ const { data, status, refresh } = await useAsyncData('admin-products', () => adm
   server: false,
   watch: [query],
 });
+keepPageInRange(() => data.value?.meta.totalPages);
 const { data: categories } = await useAsyncData('admin-products-categories', () => admin.categories.tree(), {
   server: false,
   default: () => [],

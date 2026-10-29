@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { refDebounced } from '@vueuse/core';
 import type { Order, OrderStatus } from '~/types/models';
 import type { TableColumn } from '~/types/ui';
 
@@ -21,23 +20,21 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   redelivery: 'إعادة توصيل',
 };
 
-const status = ref<OrderStatus | 'all'>((route.query.status as OrderStatus) || 'all');
-const search = ref('');
-const debouncedSearch = refDebounced(search, 350);
-const page = ref(1);
-watch([status, debouncedSearch], () => (page.value = 1));
+const { page, filter, search, searchTerm, keepPageInRange } = useAdminListQuery();
+const status = filter<OrderStatus | 'all'>('status', 'all');
 
 const query = computed(() => ({
   page: page.value,
   limit: 15,
   status: status.value === 'all' ? undefined : status.value,
-  search: debouncedSearch.value.trim() || undefined,
+  search: searchTerm.value || undefined,
 }));
 
 const { data, status: fetchStatus, refresh } = await useAsyncData('admin-orders', () => admin.orders.list(query.value), {
   server: false,
   watch: [query],
 });
+keepPageInRange(() => data.value?.meta.totalPages);
 
 const tabs = computed(() => [
   { key: 'all' as const, label: 'الكل' },
