@@ -23,8 +23,16 @@ const props = withDefaults(
 
 const config = useRuntimeConfig();
 const appConfig = useAppConfig();
+const frame = ref<HTMLElement | null>(null);
 const failed = ref(false);
 const loaded = ref(false);
+
+// A cached image can finish before NuxtImg attaches its listeners (e.g. coming
+// Back to a list rendered inside a pending Suspense), so `load` never arrives.
+onMounted(() => {
+  const img = frame.value?.querySelector('img');
+  if (img?.complete && img.naturalWidth) loaded.value = true;
+});
 
 watch(
   () => props.src,
@@ -44,6 +52,7 @@ const optimize = computed(
 
 <template>
   <span
+    ref="frame"
     class="img-frame"
     :class="{ 'is-loaded': loaded || isPlaceholder, 'img-frame--rounded': rounded, 'img-frame--ratio': ratio }"
     :style="ratio ? { aspectRatio: String(ratio) } : undefined"
